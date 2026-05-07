@@ -152,23 +152,6 @@ function cacheDOM() {
     DOM.soundToggle = document.getElementById('soundToggle');
     DOM.notifToggle = document.getElementById('notifToggle');
 
-    // Modals
-    DOM.settingsModal = document.getElementById('settingsModal');
-    DOM.settingsClose = document.getElementById('settingsClose');
-    DOM.settingsCancel = document.getElementById('settingsCancel');
-    DOM.settingsSave = document.getElementById('settingsSave');
-    DOM.settingPomodoro = document.getElementById('settingPomodoro');
-    DOM.settingShortBreak = document.getElementById('settingShortBreak');
-    DOM.settingLongBreak = document.getElementById('settingLongBreak');
-    DOM.autoStartBreak = document.getElementById('autoStartBreak');
-    DOM.autoStartFocus = document.getElementById('autoStartFocus');
-    DOM.settingVolume = document.getElementById('settingVolume');
-    DOM.btnResetData = document.getElementById('btnResetData');
-
-    // Focus overlay
-    DOM.focusOverlay = document.getElementById('focusOverlay');
-    DOM.focusExitBtn = document.getElementById('focusExitBtn');
-
     // App wrapper
     DOM.appWrapper = document.getElementById('appWrapper');
 }
@@ -399,9 +382,18 @@ const Storage = {
 // ========================================
 function updateClock() {
     const now = new Date();
-    const hours = String(now.getHours()).padStart(2, '0');
+    
+    // Convert to 12-hour format
+    let hours = now.getHours();
     const minutes = String(now.getMinutes()).padStart(2, '0');
-    DOM.clockTime.textContent = `${hours}:${minutes}`;
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    
+    // Convert 24-hour to 12-hour (1-12, no leading zero)
+    hours = hours % 12;
+    hours = hours ? hours : 12; // 0 becomes 12
+    
+    DOM.clockTime.textContent = `${hours}:${minutes}:${seconds} ${ampm}`;
 
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     DOM.liveDate.textContent = now.toLocaleDateString('ar-SA', options);
@@ -647,18 +639,18 @@ function completeTimer() {
                 popup: 'swal-focus-popup',
                 confirmButton: 'swal-confirm-focus'
             },
+            icon: 'success',
+            title: 'اكتملت الجلسة!',
             html: `
                 <div style="text-align:center; margin-bottom: 1rem;">
-                    <div style="font-size:3.5rem; margin-bottom: 0.5rem;">🏆</div>
-                    <h2 style="color:#f1f5f9; font-family:'Cairo','Tajawal',sans-serif; font-weight:800; font-size:1.4rem; margin-bottom:0.5rem;">اكتملت الجلسة!</h2>
-                    <p style="color:#94a3b8; font-family:'Cairo','Tajawal',sans-serif; font-size:0.9rem; line-height:1.7;">
+                    <p style="color:var(--text-secondary); font-family:'Cairo','Tajawal',sans-serif; font-size:0.9rem; line-height:1.7;">
                         أحسنت! لقد أكملت جلسة تركيز كاملة.<br>
-                        <strong style="color:#4ade80;">استحق استراحتك المكتسبة.</strong>
+                        <strong style="color:var(--accent-focus-light);">استحق استراحتك المكتسبة.</strong>
                     </p>
                 </div>
             `,
             showConfirmButton: true,
-            confirmButtonText: 'متابعة ✓',
+            confirmButtonText: 'متابعة <i class="uil uil-check"></i>',
             buttonsStyling: false,
             timer: AppState.autoStartBreak ? 2500 : undefined,
             timerProgressBar: AppState.autoStartBreak,
@@ -697,18 +689,18 @@ function completeTimer() {
                 popup: 'swal-break-popup',
                 confirmButton: 'swal-confirm-break'
             },
+            icon: 'info',
+            title: 'انتهت الاستراحة!',
             html: `
                 <div style="text-align:center; margin-bottom: 1rem;">
-                    <div style="font-size:3.5rem; margin-bottom: 0.5rem;">⚡</div>
-                    <h2 style="color:#f1f5f9; font-family:'Cairo','Tajawal',sans-serif; font-weight:800; font-size:1.4rem; margin-bottom:0.5rem;">انتهت الاستراحة!</h2>
-                    <p style="color:#94a3b8; font-family:'Cairo','Tajawal',sans-serif; font-size:0.9rem; line-height:1.7;">
+                    <p style="color:var(--text-secondary); font-family:'Cairo','Tajawal',sans-serif; font-size:0.9rem; line-height:1.7;">
                         هل أنت مستعد للعودة إلى العمل؟<br>
-                        <strong style="color:#fbbf24;">حافظ على تركيزك وحقق أهدافك!</strong>
+                        <strong style="color:var(--accent-short-light);">حافظ على تركيزك وحقق أهدافك!</strong>
                     </p>
                 </div>
             `,
             showConfirmButton: true,
-            confirmButtonText: 'لنبدأ! 🚀',
+            confirmButtonText: 'لنبدأ! <i class="uil uil-rocket"></i>',
             buttonsStyling: false,
             timer: AppState.autoStartFocus ? 2500 : undefined,
             timerProgressBar: AppState.autoStartFocus,
@@ -977,32 +969,101 @@ function changeDuration(setting, direction) {
 }
 
 function openSettings() {
-    DOM.settingPomodoro.value = AppState.durations.pomodoro;
-    DOM.settingShortBreak.value = AppState.durations.shortBreak;
-    DOM.settingLongBreak.value = AppState.durations.longBreak;
-    DOM.autoStartBreak.checked = AppState.autoStartBreak;
-    DOM.autoStartFocus.checked = AppState.autoStartFocus;
-    DOM.settingVolume.value = AppState.volume;
-
-    DOM.settingsModal.classList.add('active');
+    Swal.fire({
+        title: '<i class="uil uil-setting"></i> الإعدادات',
+        html: `
+            <div class="settings-body" style="text-align: right; direction: rtl; padding: 0;">
+                <div class="settings-section">
+                    <h3>مدد المؤقت</h3>
+                    <div class="settings-row">
+                        <label>مدة التركيز</label>
+                        <div class="settings-input-group">
+                            <input type="number" id="swalPomodoro" min="1" max="60" value="${AppState.durations.pomodoro}">
+                            <span>د</span>
+                        </div>
+                    </div>
+                    <div class="settings-row">
+                        <label>استراحة قصيرة</label>
+                        <div class="settings-input-group">
+                            <input type="number" id="swalShortBreak" min="1" max="30" value="${AppState.durations.shortBreak}">
+                            <span>د</span>
+                        </div>
+                    </div>
+                    <div class="settings-row">
+                        <label>استراحة طويلة</label>
+                        <div class="settings-input-group">
+                            <input type="number" id="swalLongBreak" min="1" max="60" value="${AppState.durations.longBreak}">
+                            <span>د</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3>التفضيلات</h3>
+                    <div class="settings-row">
+                        <label>بدء الاستراحة تلقائياً</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="swalAutoStartBreak" ${AppState.autoStartBreak ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-row">
+                        <label>بدء التركيز تلقائياً</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="swalAutoStartFocus" ${AppState.autoStartFocus ? 'checked' : ''}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-row">
+                        <label>مستوى الصوت</label>
+                        <input type="range" id="swalVolume" min="0" max="100" value="${AppState.volume}" class="settings-range">
+                    </div>
+                </div>
+                <div class="settings-section" style="margin-bottom: 0;">
+                    <h3>البيانات</h3>
+                    <button class="settings-danger-btn" id="swalBtnResetData" type="button">
+                        <i class="uil uil-trash-alt"></i> إعادة تعيين جميع البيانات
+                    </button>
+                </div>
+            </div>
+        `,
+        customClass: {
+            popup: 'swal-settings-popup',
+            confirmButton: 'swal-confirm-focus',
+            cancelButton: 'swal-cancel-btn'
+        },
+        showCancelButton: true,
+        confirmButtonText: 'حفظ التغييرات',
+        cancelButtonText: 'إلغاء',
+        buttonsStyling: false,
+        didOpen: () => {
+            const btnReset = document.getElementById('swalBtnResetData');
+            btnReset.addEventListener('click', resetAllData);
+        },
+        preConfirm: () => {
+            const pomodoro = parseInt(document.getElementById('swalPomodoro').value) || 25;
+            const shortBreak = parseInt(document.getElementById('swalShortBreak').value) || 5;
+            const longBreak = parseInt(document.getElementById('swalLongBreak').value) || 15;
+            const autoStartBreak = document.getElementById('swalAutoStartBreak').checked;
+            const autoStartFocus = document.getElementById('swalAutoStartFocus').checked;
+            const volume = parseInt(document.getElementById('swalVolume').value) || 50;
+            
+            return { pomodoro, shortBreak, longBreak, autoStartBreak, autoStartFocus, volume };
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            saveSettings(result.value);
+        }
+    });
 }
 
-function closeSettings() {
-    DOM.settingsModal.classList.remove('active');
-}
+function saveSettings(values) {
+    AppState.durations.pomodoro = Math.max(1, Math.min(60, values.pomodoro));
+    AppState.durations.shortBreak = Math.max(1, Math.min(30, values.shortBreak));
+    AppState.durations.longBreak = Math.max(1, Math.min(60, values.longBreak));
 
-function saveSettings() {
-    const pomodoro = parseInt(DOM.settingPomodoro.value) || 25;
-    const shortBreak = parseInt(DOM.settingShortBreak.value) || 5;
-    const longBreak = parseInt(DOM.settingLongBreak.value) || 15;
-
-    AppState.durations.pomodoro = Math.max(1, Math.min(60, pomodoro));
-    AppState.durations.shortBreak = Math.max(1, Math.min(30, shortBreak));
-    AppState.durations.longBreak = Math.max(1, Math.min(60, longBreak));
-
-    AppState.autoStartBreak = DOM.autoStartBreak.checked;
-    AppState.autoStartFocus = DOM.autoStartFocus.checked;
-    AppState.volume = parseInt(DOM.settingVolume.value) || 50;
+    AppState.autoStartBreak = values.autoStartBreak;
+    AppState.autoStartFocus = values.autoStartFocus;
+    AppState.volume = values.volume;
 
     updateDurationDisplay();
 
@@ -1018,23 +1079,25 @@ function saveSettings() {
     AudioEngine.updateAmbientVolume();
 
     Storage.save();
-    closeSettings();
 }
 
 function resetAllData() {
+    // Close the settings modal first
+    Swal.close();
+
     Swal.fire({
         customClass: {
             popup: 'swal-danger-popup',
             confirmButton: 'swal-confirm-danger',
             cancelButton: 'swal-cancel-btn'
         },
+        icon: 'warning',
+        title: 'إعادة تعيين البيانات',
         html: `
             <div style="text-align:center;">
-                <div style="font-size:3rem; margin-bottom:0.75rem;">⚠️</div>
-                <h2 style="color:#f1f5f9; font-family:'Cairo','Tajawal',sans-serif; font-weight:800; font-size:1.3rem; margin-bottom:0.5rem;">إعادة تعيين البيانات</h2>
-                <p style="color:#94a3b8; font-family:'Cairo','Tajawal',sans-serif; font-size:0.875rem; line-height:1.7;">
+                <p style="color:var(--text-secondary); font-family:'Cairo','Tajawal',sans-serif; font-size:0.875rem; line-height:1.7;">
                     هل أنت متأكد أنك تريد إعادة تعيين جميع البيانات؟<br>
-                    <strong style="color:#fb7185;">لا يمكن التراجع عن هذه العملية.</strong>
+                    <strong style="color:var(--accent-rose);">لا يمكن التراجع عن هذه العملية.</strong>
                 </p>
             </div>
         `,
@@ -1073,32 +1136,25 @@ function resetAllData() {
             DOM.notifToggle.checked = false;
             DOM.volumeSlider.value = 50;
 
-            closeSettings();
             Storage.save();
 
             Swal.fire({
                 customClass: { popup: 'swal-focus-popup', confirmButton: 'swal-confirm-focus' },
-                html: `<div style="text-align:center;"><div style="font-size:2.5rem;margin-bottom:0.5rem;">✅</div><p style="color:#94a3b8;font-family:'Cairo','Tajawal',sans-serif;">تمت إعادة تعيين جميع البيانات بنجاح.</p></div>`,
+                icon: 'success',
+                title: 'تمت إعادة التعيين',
+                html: `<div style="text-align:center;"><p style="color:var(--text-secondary);font-family:'Cairo','Tajawal',sans-serif;">تمت إعادة تعيين جميع البيانات بنجاح.</p></div>`,
                 showConfirmButton: false,
                 timer: 2000,
                 buttonsStyling: false
             });
+        } else {
+            // Re-open settings if cancelled
+            openSettings();
         }
     });
 }
 
-// ========================================
-// MODALS (replaced by SweetAlert2)
-// ========================================
-function showCompletionModal(title, message) {
-    // Handled by SweetAlert2 in completeTimer()
-    DOM.appWrapper.classList.add('timer-complete');
-    setTimeout(() => DOM.appWrapper.classList.remove('timer-complete'), 600);
-}
 
-function hideCompletionModal() {
-    // No-op: SweetAlert2 handles this
-}
 
 // ========================================
 // PARTICLES
@@ -1148,10 +1204,6 @@ function bindEvents() {
 
     // Settings
     DOM.settingsToggle.addEventListener('click', openSettings);
-    DOM.settingsClose.addEventListener('click', closeSettings);
-    DOM.settingsCancel.addEventListener('click', closeSettings);
-    DOM.settingsSave.addEventListener('click', saveSettings);
-    DOM.btnResetData.addEventListener('click', resetAllData);
 
     // Timer controls
     DOM.btnMain.addEventListener('click', handleMainButton);
@@ -1207,10 +1259,7 @@ function bindEvents() {
         }
     });
 
-    // Modal
-    DOM.settingsModal.addEventListener('click', (e) => {
-        if (e.target === DOM.settingsModal) closeSettings();
-    });
+
 
     // Focus exit button
     if (DOM.focusExitBtn) {
@@ -1229,9 +1278,8 @@ function bindEvents() {
             e.preventDefault();
             resetTimer();
         }
-        // Escape to close modals / focus mode
+        // Escape to close focus mode
         if (e.code === 'Escape') {
-            closeSettings();
             if (AppState.focusMode) toggleFocusMode();
         }
     });
@@ -1284,7 +1332,7 @@ function init() {
     // Save initial state
     Storage.save();
 
-    console.log('🎯 تم تشغيل فوكس فلو بنجاح!');
+    console.log('تم تشغيل فوكس فلو بنجاح!');
 }
 
 // Start the app when DOM is ready
