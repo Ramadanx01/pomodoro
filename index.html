@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>فوكس فلو — مؤقت بومودورو المتميز</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Google Fonts - Arabic -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Tajawal:wght@300;400;500;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Iconscout Icons -->
+    <link rel="stylesheet" href="https://unicons.iconscout.com/release/v4.0.8/css/line.css">
+    <link rel="stylesheet" href="https://unicons.iconscout.com/release/v4.0.8/css/solid.css">
+
+    <!-- SweetAlert2 CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Cairo', 'Tajawal', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        primary: {
+                            50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0',
+                            300: '#86efac', 400: '#4ade80', 500: '#22c55e',
+                            600: '#16a34a', 700: '#15803d', 800: '#166534', 900: '#14532d',
+                        },
+                        accent: {
+                            50: '#fff7ed', 100: '#ffedd5', 200: '#fed7aa',
+                            300: '#fdba74', 400: '#fb923c', 500: '#f97316',
+                            600: '#ea580c', 700: '#c2410c', 800: '#9a3412', 900: '#7c2d12',
+                        },
+                        rose: {
+                            50: '#fff1f2', 100: '#ffe4e6', 200: '#fecdd3',
+                            300: '#fda4af', 400: '#fb7185', 500: '#f43f5e',
+                            600: '#e11d48', 700: '#be123c', 800: '#9f1239', 900: '#881337',
+                        },
+                        slate: { 850: '#1e293b', 900: '#0f172a', 950: '#020617' }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <link rel="stylesheet" href="index.css">
+<base target="_blank">
+</head>
+<body class="font-sans antialiased overflow-x-hidden">
+    <!-- Animated Background -->
+    <div class="bg-container" id="bgContainer">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+        <div class="blob blob-4"></div>
+        <div class="particles" id="particles"></div>
+    </div>
+
+    <!-- Overlay for focus mode -->
+    <div class="focus-overlay" id="focusOverlay"></div>
+
+    <!-- Focus Mode Exit Button (visible only in focus mode) -->
+    <button class="focus-exit-btn" id="focusExitBtn">
+        <i class="uil uil-compress-alt"></i>
+        <span>خروج من التركيز</span>
+    </button>
+
+    <!-- Main App Container -->
+    <div class="app-wrapper" id="appWrapper">
+
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="logo-container">
+                    <div class="logo-icon">
+                        <i class="uil uil-focus-target"></i>
+                    </div>
+                    <div class="logo-text">
+                        <span class="logo-main">FocusFlow</span>
+                        <span class="logo-sub">مؤقت بومودورو</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="header-center">
+                <div class="live-clock" id="liveClock">
+                    <i class="uil uil-clock"></i>
+                    <span id="clockTime">--:--</span>
+                </div>
+                <div class="live-date" id="liveDate">--</div>
+            </div>
+
+            <div class="header-right">
+                <button class="header-btn focus-toggle" id="focusToggle" title="وضع التركيز">
+                    <i class="uil uil-eye-slash"></i>
+                </button>
+                <button class="header-btn theme-toggle" id="themeToggle" title="تغيير المظهر">
+                    <i class="uil uil-moon" id="themeIcon"></i>
+                </button>
+                <button class="header-btn settings-toggle" id="settingsToggle" title="الإعدادات">
+                    <i class="uil uil-setting"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content Grid -->
+        <main class="main-grid">
+
+            <!-- Left Panel: Stats & Tasks -->
+            <aside class="left-panel">
+                <!-- Stats Card -->
+                <div class="glass-card stats-card">
+                    <div class="card-header">
+                        <i class="uil uil-chart-pie-alt"></i>
+                        <h3>تركيز اليوم</h3>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-icon sessions-icon">
+                                <i class="uil uil-check-circle"></i>
+                            </div>
+                            <div class="stat-info">
+                                <span class="stat-value" id="sessionsCount">0</span>
+                                <span class="stat-label">جلسات</span>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-icon minutes-icon">
+                                <i class="uil uil-hourglass"></i>
+                            </div>
+                            <div class="stat-info">
+                                <span class="stat-value" id="minutesCount">0</span>
+                                <span class="stat-label">دقائق</span>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-icon tasks-icon">
+                                <i class="uil uil-clipboard-notes"></i>
+                            </div>
+                            <div class="stat-info">
+                                <span class="stat-value" id="tasksCompleted">0</span>
+                                <span class="stat-label">مهام منجزة</span>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-icon streak-icon">
+                                <i class="uil uil-fire"></i>
+                            </div>
+                            <div class="stat-info">
+                                <span class="stat-value" id="streakCount">0</span>
+                                <span class="stat-label">أيام متتالية</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Task Manager -->
+                <div class="glass-card tasks-card">
+                    <div class="card-header">
+                        <i class="uil uil-clipboard-alt"></i>
+                        <h3>المهام</h3>
+                        <span class="task-count" id="taskCount">0</span>
+                    </div>
+                    <div class="task-input-area">
+                        <input type="text" class="task-input" id="taskInput" placeholder="أضف مهمة جديدة..." maxlength="100">
+                        <button class="task-add-btn" id="taskAddBtn">
+                            <i class="uil uil-plus"></i>
+                        </button>
+                    </div>
+                    <div class="task-list" id="taskList"></div>
+                    <div class="task-empty" id="taskEmpty">
+                        <i class="uil uil-clipboard-blank"></i>
+                        <p>لا توجد مهام بعد. ابدأ بإضافة واحدة!</p>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Center Panel: Timer -->
+            <section class="center-panel">
+                <!-- Timer Card -->
+                <div class="glass-card timer-card">
+                    <!-- Mode Tabs -->
+                    <div class="mode-tabs">
+                        <button class="mode-tab active" data-mode="pomodoro" id="tabPomodoro">
+                            <i class="uil uil-brain"></i>
+                            <span>تركيز</span>
+                        </button>
+                        <button class="mode-tab" data-mode="shortBreak" id="tabShortBreak">
+                            <i class="uil uil-coffee"></i>
+                            <span>استراحة قصيرة</span>
+                        </button>
+                        <button class="mode-tab" data-mode="longBreak" id="tabLongBreak">
+                            <i class="uil uil-bed-double"></i>
+                            <span>استراحة طويلة</span>
+                        </button>
+                    </div>
+
+                    <!-- Timer Display -->
+                    <div class="timer-display">
+                        <div class="timer-ring-container">
+                            <svg class="timer-ring" viewBox="0 0 280 280">
+                                <defs>
+                                    <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" class="ring-stop-1" />
+                                        <stop offset="100%" class="ring-stop-2" />
+                                    </linearGradient>
+                                    <filter id="ringGlow" x="-50%" y="-50%" width="200%" height="200%">
+                                        <feGaussianBlur stdDeviation="4" result="blur" />
+                                        <feMerge>
+                                            <feMergeNode in="blur" />
+                                            <feMergeNode in="SourceGraphic" />
+                                        </feMerge>
+                                    </filter>
+                                </defs>
+                                <circle class="ring-bg" cx="140" cy="140" r="120" />
+                                <circle class="ring-progress" id="ringProgress" cx="140" cy="140" r="120" 
+                                    stroke="url(#ringGradient)" filter="url(#ringGlow)" />
+                            </svg>
+                            <div class="timer-content">
+                                <div class="timer-mode-label" id="timerModeLabel">جلسة تركيز</div>
+                                <div class="timer-time" id="timerTime">25:00</div>
+                                <div class="timer-status" id="timerStatus">جاهز للتركيز</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Timer Controls -->
+                    <div class="timer-controls">
+                        <button class="control-btn secondary" id="btnReset" title="إعادة ضبط المؤقت">
+                            <i class="uil uil-redo"></i>
+                        </button>
+                        <button class="control-btn primary" id="btnMain" title="بدء المؤقت">
+                            <i class="uil uil-play" id="btnMainIcon"></i>
+                            <span id="btnMainText">ابدأ</span>
+                        </button>
+                        <button class="control-btn secondary" id="btnSkip" title="تخطي الجلسة">
+                            <i class="uil uil-step-forward"></i>
+                        </button>
+                    </div>
+
+                    <!-- Session Counter -->
+                    <div class="session-dots" id="sessionDots">
+                        <span class="dot-label">الجلسات</span>
+                        <div class="dots-container" id="dotsContainer">
+                            <div class="dot"></div>
+                            <div class="dot"></div>
+                            <div class="dot"></div>
+                            <div class="dot"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Motivational Quote -->
+                <div class="glass-card quote-card" id="quoteCard">
+                    <i class="uil uil-quote-left quote-icon"></i>
+                    <p class="quote-text" id="quoteText">"سر التقدم هو البدء."</p>
+                    <span class="quote-author" id="quoteAuthor">— مارك توين</span>
+                    <button class="quote-refresh" id="quoteRefresh" title="اقتباس جديد">
+                        <i class="uil uil-sync"></i>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Right Panel: Ambient & Settings -->
+            <aside class="right-panel">
+                <!-- Ambient Sounds -->
+                <div class="glass-card ambient-card">
+                    <div class="card-header">
+                        <i class="uil uil-headphones-alt"></i>
+                        <h3>الأصوات المحيطة</h3>
+                    </div>
+                    <div class="ambient-grid">
+                        <button class="ambient-btn" data-sound="rain" id="btnRain">
+                            <div class="ambient-icon"><i class="uil uil-cloud-rain"></i></div>
+                            <span class="ambient-name">المطر</span>
+                            <div class="ambient-wave"><span></span><span></span><span></span><span></span></div>
+                        </button>
+                        <button class="ambient-btn" data-sound="forest" id="btnForest">
+                            <div class="ambient-icon"><i class="uil uil-trees"></i></div>
+                            <span class="ambient-name">الغابة</span>
+                            <div class="ambient-wave"><span></span><span></span><span></span><span></span></div>
+                        </button>
+                        <button class="ambient-btn" data-sound="cafe" id="btnCafe">
+                            <div class="ambient-icon"><i class="uil uil-coffee"></i></div>
+                            <span class="ambient-name">المقهى</span>
+                            <div class="ambient-wave"><span></span><span></span><span></span><span></span></div>
+                        </button>
+                        <button class="ambient-btn" data-sound="waves" id="btnWaves">
+                            <div class="ambient-icon"><i class="uil uil-water"></i></div>
+                            <span class="ambient-name">الأمواج</span>
+                            <div class="ambient-wave"><span></span><span></span><span></span><span></span></div>
+                        </button>
+                    </div>
+                    <div class="ambient-volume">
+                        <i class="uil uil-volume-mute"></i>
+                        <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="50">
+                        <i class="uil uil-volume-up"></i>
+                    </div>
+                </div>
+
+                <!-- Quick Settings -->
+                <div class="glass-card quick-settings">
+                    <div class="card-header">
+                        <i class="uil uil-sliders-v-alt"></i>
+                        <h3>إعدادات المؤقت</h3>
+                    </div>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <i class="uil uil-brain"></i>
+                            <div>
+                                <span class="setting-name">مدة التركيز</span>
+                                <span class="setting-desc">دقائق لكل جلسة</span>
+                            </div>
+                        </div>
+                        <div class="setting-control">
+                            <button class="setting-btn minus" data-setting="pomodoro" data-dir="-1">−</button>
+                            <span class="setting-value" id="valPomodoro">25</span>
+                            <button class="setting-btn plus" data-setting="pomodoro" data-dir="1">+</button>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <i class="uil uil-coffee"></i>
+                            <div>
+                                <span class="setting-name">الاستراحة القصيرة</span>
+                                <span class="setting-desc">دقائق لكل استراحة</span>
+                            </div>
+                        </div>
+                        <div class="setting-control">
+                            <button class="setting-btn minus" data-setting="shortBreak" data-dir="-1">−</button>
+                            <span class="setting-value" id="valShortBreak">5</span>
+                            <button class="setting-btn plus" data-setting="shortBreak" data-dir="1">+</button>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <i class="uil uil-bed-double"></i>
+                            <div>
+                                <span class="setting-name">الاستراحة الطويلة</span>
+                                <span class="setting-desc">دقائق بعد 4 جلسات</span>
+                            </div>
+                        </div>
+                        <div class="setting-control">
+                            <button class="setting-btn minus" data-setting="longBreak" data-dir="-1">−</button>
+                            <span class="setting-value" id="valLongBreak">15</span>
+                            <button class="setting-btn plus" data-setting="longBreak" data-dir="1">+</button>
+                        </div>
+                    </div>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <i class="uil uil-bell"></i>
+                            <div>
+                                <span class="setting-name">المؤثرات الصوتية</span>
+                                <span class="setting-desc">أصوات إتمام المؤقت</span>
+                            </div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="soundToggle" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <i class="uil uil-desktop"></i>
+                            <div>
+                                <span class="setting-name">الإشعارات</span>
+                                <span class="setting-desc">إشعارات المتصفح</span>
+                            </div>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="notifToggle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>فوكس فلو — ابقَ مركزًا، ابقَ منتجًا</p>
+        </footer>
+    </div>
+
+    <!-- Settings Modal (SweetAlert2 handles completion modal) -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal-content settings-modal-content">
+            <div class="modal-header">
+                <h2><i class="uil uil-setting"></i> الإعدادات</h2>
+                <button class="modal-close" id="settingsClose">
+                    <i class="uil uil-times"></i>
+                </button>
+            </div>
+            <div class="settings-body">
+                <div class="settings-section">
+                    <h3>مدد المؤقت</h3>
+                    <div class="settings-row">
+                        <label>مدة التركيز</label>
+                        <div class="settings-input-group">
+                            <input type="number" id="settingPomodoro" min="1" max="60" value="25">
+                            <span>د</span>
+                        </div>
+                    </div>
+                    <div class="settings-row">
+                        <label>استراحة قصيرة</label>
+                        <div class="settings-input-group">
+                            <input type="number" id="settingShortBreak" min="1" max="30" value="5">
+                            <span>د</span>
+                        </div>
+                    </div>
+                    <div class="settings-row">
+                        <label>استراحة طويلة</label>
+                        <div class="settings-input-group">
+                            <input type="number" id="settingLongBreak" min="1" max="60" value="15">
+                            <span>د</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3>التفضيلات</h3>
+                    <div class="settings-row">
+                        <label>بدء الاستراحة تلقائياً</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="autoStartBreak">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-row">
+                        <label>بدء التركيز تلقائياً</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="autoStartFocus">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="settings-row">
+                        <label>مستوى الصوت</label>
+                        <input type="range" id="settingVolume" min="0" max="100" value="50" class="settings-range">
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3>البيانات</h3>
+                    <button class="settings-danger-btn" id="btnResetData">
+                        <i class="uil uil-trash-alt"></i> إعادة تعيين جميع البيانات
+                    </button>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn secondary" id="settingsCancel">إلغاء</button>
+                <button class="modal-btn primary" id="settingsSave">حفظ التغييرات</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="index.js"></script>
+</body>
+</html>
