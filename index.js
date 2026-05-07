@@ -211,98 +211,17 @@ const AudioEngine = {
 
     playSessionEnd() {
         if (!AppState.soundEnabled) return;
-        this.playBellSound(2000);
+        const vol = (AppState.volume / 100) * 0.3;
+        this.playTone(523.25, 0.3, 'sine', vol);
+        setTimeout(() => this.playTone(659.25, 0.3, 'sine', vol), 200);
+        setTimeout(() => this.playTone(783.99, 0.5, 'sine', vol), 400);
     },
 
     playBreakStart() {
         if (!AppState.soundEnabled) return;
-        this.playBellSound(1800);
-    },
-
-    playBellSound(duration = 2000) {
-        // Create a realistic long bell/alarm sound
-        this.init();
-        const vol = (AppState.volume / 100) * 0.25;
-        const now = this.ctx.currentTime;
-        const durationInSeconds = duration / 1000;
-
-        // Create multiple overlapping oscillators for complex bell tone
-        const osc1 = this.ctx.createOscillator();
-        const osc2 = this.ctx.createOscillator();
-        const osc3 = this.ctx.createOscillator();
-        const osc4 = this.ctx.createOscillator();
-
-        const gain1 = this.ctx.createGain();
-        const gain2 = this.ctx.createGain();
-        const gain3 = this.ctx.createGain();
-        const gain4 = this.ctx.createGain();
-        const masterGain = this.ctx.createGain();
-
-        // Set up base frequencies (bell tones)
-        osc1.frequency.setValueAtTime(520, now);
-        osc2.frequency.setValueAtTime(780, now);
-        osc3.frequency.setValueAtTime(1040, now);
-        osc4.frequency.setValueAtTime(1300, now);
-
-        // Slight frequency variation for richness
-        osc1.frequency.exponentialRampToValueAtTime(500, now + durationInSeconds);
-        osc2.frequency.exponentialRampToValueAtTime(750, now + durationInSeconds);
-        osc3.frequency.exponentialRampToValueAtTime(1000, now + durationInSeconds);
-        osc4.frequency.exponentialRampToValueAtTime(1250, now + durationInSeconds);
-
-        // Set oscillator types
-        osc1.type = 'sine';
-        osc2.type = 'sine';
-        osc3.type = 'sine';
-        osc4.type = 'triangle';
-
-        // Fast fade in
-        gain1.gain.setValueAtTime(0, now);
-        gain1.gain.linearRampToValueAtTime(vol * 0.6, now + 0.05);
-        gain1.gain.exponentialRampToValueAtTime(vol * 0.05, now + durationInSeconds);
-
-        gain2.gain.setValueAtTime(0, now);
-        gain2.gain.linearRampToValueAtTime(vol * 0.4, now + 0.08);
-        gain2.gain.exponentialRampToValueAtTime(vol * 0.02, now + durationInSeconds);
-
-        gain3.gain.setValueAtTime(0, now);
-        gain3.gain.linearRampToValueAtTime(vol * 0.3, now + 0.1);
-        gain3.gain.exponentialRampToValueAtTime(0.001, now + durationInSeconds);
-
-        gain4.gain.setValueAtTime(0, now);
-        gain4.gain.linearRampToValueAtTime(vol * 0.2, now + 0.12);
-        gain4.gain.exponentialRampToValueAtTime(0.001, now + durationInSeconds);
-
-        // Master fade out
-        masterGain.gain.setValueAtTime(1, now);
-        masterGain.gain.exponentialRampToValueAtTime(0.001, now + durationInSeconds);
-
-        // Connect all oscillators to their gains
-        osc1.connect(gain1);
-        osc2.connect(gain2);
-        osc3.connect(gain3);
-        osc4.connect(gain4);
-
-        // Connect all gains to master
-        gain1.connect(masterGain);
-        gain2.connect(masterGain);
-        gain3.connect(masterGain);
-        gain4.connect(masterGain);
-
-        // Connect master to destination
-        masterGain.connect(this.ctx.destination);
-
-        // Start oscillators
-        osc1.start(now);
-        osc2.start(now);
-        osc3.start(now);
-        osc4.start(now);
-
-        // Stop oscillators
-        osc1.stop(now + durationInSeconds);
-        osc2.stop(now + durationInSeconds);
-        osc3.stop(now + durationInSeconds);
-        osc4.stop(now + durationInSeconds);
+        const vol = (AppState.volume / 100) * 0.3;
+        this.playTone(440, 0.3, 'sine', vol);
+        setTimeout(() => this.playTone(349.23, 0.4, 'sine', vol), 250);
     },
 
     playTimerStart() {
@@ -421,116 +340,6 @@ const AudioEngine = {
 };
 
 // ========================================
-// CUSTOM MODAL SYSTEM (THEME-AWARE)
-// ========================================
-const CustomModal = {
-    currentModal: null,
-
-    show(options = {}) {
-        // Remove existing modal if any
-        this.hide();
-
-        const {
-            title = '',
-            message = '',
-            icon = '✓',
-            confirmText = 'متابعة',
-            cancelText = 'إلغاء',
-            onConfirm = () => {},
-            onCancel = () => {},
-            autoClose = false,
-            autoCloseDelay = 2500,
-            isDark = AppState.darkMode,
-            type = 'success' // success, info, warning, error
-        } = options;
-
-        // Create modal container
-        const modal = document.createElement('div');
-        modal.className = 'custom-modal-overlay';
-        if (isDark) modal.classList.add('dark-mode');
-
-        // Create modal content
-        const content = document.createElement('div');
-        content.className = 'custom-modal-content';
-
-        // Icon
-        const iconEl = document.createElement('div');
-        iconEl.className = `custom-modal-icon ${type}`;
-        iconEl.textContent = icon;
-
-        // Title
-        const titleEl = document.createElement('h2');
-        titleEl.className = 'custom-modal-title';
-        titleEl.textContent = title;
-
-        // Message
-        const messageEl = document.createElement('p');
-        messageEl.className = 'custom-modal-message';
-        messageEl.textContent = message;
-
-        // Buttons
-        const buttonsContainer = document.createElement('div');
-        buttonsContainer.className = 'custom-modal-buttons';
-
-        const confirmBtn = document.createElement('button');
-        confirmBtn.className = 'custom-modal-btn confirm';
-        confirmBtn.textContent = confirmText;
-        confirmBtn.addEventListener('click', () => {
-            onConfirm();
-            this.hide();
-        });
-
-        buttonsContainer.appendChild(confirmBtn);
-
-        if (cancelText) {
-            const cancelBtn = document.createElement('button');
-            cancelBtn.className = 'custom-modal-btn cancel';
-            cancelBtn.textContent = cancelText;
-            cancelBtn.addEventListener('click', () => {
-                onCancel();
-                this.hide();
-            });
-            buttonsContainer.appendChild(cancelBtn);
-        }
-
-        // Assemble modal
-        content.appendChild(iconEl);
-        content.appendChild(titleEl);
-        content.appendChild(messageEl);
-        content.appendChild(buttonsContainer);
-        modal.appendChild(content);
-
-        // Add to DOM
-        document.body.appendChild(modal);
-        this.currentModal = modal;
-
-        // Trigger animation
-        requestAnimationFrame(() => {
-            modal.classList.add('active');
-        });
-
-        // Auto close
-        if (autoClose) {
-            setTimeout(() => {
-                this.hide();
-            }, autoCloseDelay);
-        }
-    },
-
-    hide() {
-        if (this.currentModal) {
-            this.currentModal.classList.remove('active');
-            setTimeout(() => {
-                if (this.currentModal && this.currentModal.parentNode) {
-                    this.currentModal.parentNode.removeChild(this.currentModal);
-                    this.currentModal = null;
-                }
-            }, 300);
-        }
-    }
-};
-
-// ========================================
 // LOCAL STORAGE
 // ========================================
 const Storage = {
@@ -605,20 +414,6 @@ function toggleTheme() {
     AppState.darkMode = !AppState.darkMode;
     applyTheme();
     Storage.save();
-
-    // Update any open SweetAlert2 modals
-    const popup = document.querySelector('.swal2-popup');
-    if (popup) {
-        if (AppState.darkMode) {
-            popup.classList.add('dark-mode');
-            popup.classList.remove('light-mode');
-            popup.style.background = 'rgba(15, 23, 42, 0.9)';
-        } else {
-            popup.classList.remove('dark-mode');
-            popup.classList.add('light-mode');
-            popup.style.background = 'rgba(255, 255, 255, 0.95)';
-        }
-    }
 }
 
 function applyTheme() {
@@ -824,7 +619,7 @@ function completeTimer() {
     AppState.isPaused = false;
     DOM.appWrapper.classList.remove('timer-running');
 
-    // Play bell sound
+    // Play sound
     if (AppState.soundEnabled) {
         AudioEngine.playSessionEnd();
     }
@@ -846,21 +641,17 @@ function completeTimer() {
         updateSessionDots();
         Storage.save();
 
-        // Use theme-aware SweetAlert2 popup
+        // Show SweetAlert2 completion popup
         Swal.fire({
             customClass: {
-                popup: `swal-focus-popup ${AppState.darkMode ? 'dark-mode' : 'light-mode'}`,
-                confirmButton: 'swal-confirm-focus',
-                title: 'swal-title',
-                htmlContainer: 'swal-html'
+                popup: 'swal-focus-popup',
+                confirmButton: 'swal-confirm-focus'
             },
-            background: AppState.darkMode ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.95)',
-            backdrop: AppState.darkMode ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.3)',
             html: `
                 <div style="text-align:center; margin-bottom: 1rem;">
-                    <div style="font-size:3.5rem; margin-bottom: 0.5rem; animation: popIn 0.6s ease-out;">🏆</div>
-                    <h2 style="color:${AppState.darkMode ? '#f1f5f9' : '#0f172a'}; font-family:'Cairo','Tajawal',sans-serif; font-weight:800; font-size:1.4rem; margin-bottom:0.5rem;">اكتملت الجلسة!</h2>
-                    <p style="color:${AppState.darkMode ? '#94a3b8' : '#475569'}; font-family:'Cairo','Tajawal',sans-serif; font-size:0.9rem; line-height:1.7;">
+                    <div style="font-size:3.5rem; margin-bottom: 0.5rem;">🏆</div>
+                    <h2 style="color:#f1f5f9; font-family:'Cairo','Tajawal',sans-serif; font-weight:800; font-size:1.4rem; margin-bottom:0.5rem;">اكتملت الجلسة!</h2>
+                    <p style="color:#94a3b8; font-family:'Cairo','Tajawal',sans-serif; font-size:0.9rem; line-height:1.7;">
                         أحسنت! لقد أكملت جلسة تركيز كاملة.<br>
                         <strong style="color:#4ade80;">استحق استراحتك المكتسبة.</strong>
                     </p>
@@ -887,6 +678,7 @@ function completeTimer() {
                 } else {
                     setMode('shortBreak');
                 }
+                AudioEngine.playBreakStart();
                 startTimer();
             }, 2500);
         } else {
@@ -898,20 +690,18 @@ function completeTimer() {
         }
     } else {
         // Break complete
+        if (AppState.soundEnabled) AudioEngine.playBreakStart();
+
         Swal.fire({
             customClass: {
-                popup: `swal-break-popup ${AppState.darkMode ? 'dark-mode' : 'light-mode'}`,
-                confirmButton: 'swal-confirm-break',
-                title: 'swal-title',
-                htmlContainer: 'swal-html'
+                popup: 'swal-break-popup',
+                confirmButton: 'swal-confirm-break'
             },
-            background: AppState.darkMode ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.95)',
-            backdrop: AppState.darkMode ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.3)',
             html: `
                 <div style="text-align:center; margin-bottom: 1rem;">
-                    <div style="font-size:3.5rem; margin-bottom: 0.5rem; animation: popIn 0.6s ease-out;">⚡</div>
-                    <h2 style="color:${AppState.darkMode ? '#f1f5f9' : '#0f172a'}; font-family:'Cairo','Tajawal',sans-serif; font-weight:800; font-size:1.4rem; margin-bottom:0.5rem;">انتهت الاستراحة!</h2>
-                    <p style="color:${AppState.darkMode ? '#94a3b8' : '#475569'}; font-family:'Cairo','Tajawal',sans-serif; font-size:0.9rem; line-height:1.7;">
+                    <div style="font-size:3.5rem; margin-bottom: 0.5rem;">⚡</div>
+                    <h2 style="color:#f1f5f9; font-family:'Cairo','Tajawal',sans-serif; font-weight:800; font-size:1.4rem; margin-bottom:0.5rem;">انتهت الاستراحة!</h2>
+                    <p style="color:#94a3b8; font-family:'Cairo','Tajawal',sans-serif; font-size:0.9rem; line-height:1.7;">
                         هل أنت مستعد للعودة إلى العمل؟<br>
                         <strong style="color:#fbbf24;">حافظ على تركيزك وحقق أهدافك!</strong>
                     </p>
@@ -1234,17 +1024,15 @@ function saveSettings() {
 function resetAllData() {
     Swal.fire({
         customClass: {
-            popup: `swal-danger-popup ${AppState.darkMode ? 'dark-mode' : 'light-mode'}`,
+            popup: 'swal-danger-popup',
             confirmButton: 'swal-confirm-danger',
             cancelButton: 'swal-cancel-btn'
         },
-        background: AppState.darkMode ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.95)',
-        backdrop: AppState.darkMode ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.3)',
         html: `
             <div style="text-align:center;">
                 <div style="font-size:3rem; margin-bottom:0.75rem;">⚠️</div>
-                <h2 style="color:${AppState.darkMode ? '#f1f5f9' : '#0f172a'}; font-family:'Cairo','Tajawal',sans-serif; font-weight:800; font-size:1.3rem; margin-bottom:0.5rem;">إعادة تعيين البيانات</h2>
-                <p style="color:${AppState.darkMode ? '#94a3b8' : '#475569'}; font-family:'Cairo','Tajawal',sans-serif; font-size:0.875rem; line-height:1.7;">
+                <h2 style="color:#f1f5f9; font-family:'Cairo','Tajawal',sans-serif; font-weight:800; font-size:1.3rem; margin-bottom:0.5rem;">إعادة تعيين البيانات</h2>
+                <p style="color:#94a3b8; font-family:'Cairo','Tajawal',sans-serif; font-size:0.875rem; line-height:1.7;">
                     هل أنت متأكد أنك تريد إعادة تعيين جميع البيانات؟<br>
                     <strong style="color:#fb7185;">لا يمكن التراجع عن هذه العملية.</strong>
                 </p>
