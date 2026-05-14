@@ -1,1339 +1,992 @@
-/**
- * ========================================
- * FOCUSFLOW — PREMIUM POMODORO TIMER
- * Vanilla JavaScript Application
- * ========================================
- */
+/* ============================================
+   نظام صكوك الأضاحي - صناع الحياة
+   خطة المعارف والأثر | حملة الأضاحي 2026
+   ============================================ */
 
-// ========================================
-// APP STATE
-// ========================================
-const AppState = {
-    // Timer
-    mode: 'pomodoro',       // pomodoro | shortBreak | longBreak
-    timeLeft: 25 * 60,      // seconds
-    totalTime: 25 * 60,     // seconds
-    isRunning: false,
-    isPaused: false,
-    timerInterval: null,
-
-    // Durations (minutes)
-    durations: {
-        pomodoro: 25,
-        shortBreak: 5,
-        longBreak: 15
-    },
-
-    // Sessions
-    completedSessions: 0,
-    totalFocusMinutes: 0,
-    currentSession: 1,
-    maxSessionsBeforeLongBreak: 4,
-
-    // Tasks
-    tasks: [],
-    nextTaskId: 1,
-
-    // Settings
-    soundEnabled: true,
-    notificationsEnabled: false,
-    autoStartBreak: false,
-    autoStartFocus: false,
-    volume: 50,
-
-    // Theme
-    darkMode: false,
-
-    // Focus Mode
-    focusMode: false,
-
-    // Ambient
-    activeAmbient: null,
-    ambientAudio: null,
-
-    // Streak
-    streak: 0,
-    lastActiveDate: null,
-
-    // Stats
-    tasksCompleted: 0
+// ============================================
+// DATA STORE
+// ============================================
+let saks = [];
+let sakTypes = [];
+let systemSettings = {
+    orgName: 'صناع الحياة',
+    pageTitle: 'نظام صكوك الأضاحي',
+    darkMode: false
 };
 
-// ========================================
-// QUOTES (Arabic)
-// ========================================
-const Quotes = [
-    { text: "سر التقدم هو البدء.", author: "مارك توين" },
-    { text: "يبدو الأمر مستحيلاً دائماً حتى يتم إنجازه.", author: "نيلسون مانديلا" },
-    { text: "لا تراقب الساعة؛ افعل ما تفعله هي. استمر في المضي.", author: "سام ليفنسون" },
-    { text: "الطريقة الوحيدة للقيام بعمل عظيم هي أن تحب ما تفعله.", author: "ستيف جوبز" },
-    { text: "النجاح هو مجموع الجهود الصغيرة المتكررة يوماً بعد يوم.", author: "روبرت كولييه" },
-    { text: "مستقبلك يُصنع بما تفعله اليوم وليس غداً.", author: "روبرت كيوساكي" },
-    { text: "التركيز على الإنتاجية أهم من الانشغال.", author: "تيم فيريس" },
-    { text: "لا يجب أن تكون عظيماً لتبدأ، لكن يجب أن تبدأ لتكون عظيماً.", author: "زيغ زيغلر" },
-    { text: "التقدم البطيء لا يزال تقدماً.", author: "مجهول" },
-    { text: "الخبير في أي شيء كان مبتدئاً ذات يوم.", author: "هيلين هايز" },
-    { text: "احلم بكبر. ابدأ بصغر. تصرف الآن.", author: "روبن شارما" },
-    { text: "ما تفعله اليوم يمكن أن يحسن كل غدٍ لك.", author: "رالف مارستون" },
-    { text: "صدّق أنك تستطيع وأنت في منتصف الطريق.", author: "ثيودور روزفلت" },
-    { text: "ادفع نفسك لأنه لن يفعل ذلك أحد عنك.", author: "مجهول" },
-    { text: "الأشياء العظيمة لا تأتي أبداً من مناطق الراحة.", author: "مجهول" },
-    { text: "العقل المركّز مطلوب في كل إنجاز.", author: "توماس إديسون" },
-    { text: "كل خطوة صغيرة إلى الأمام هي انتصار.", author: "مجهول" },
-    { text: "الإرادة القوية تجعل المستحيل ممكناً.", author: "مجهول" },
-    { text: "من صبر وثابر نال ما أراد.", author: "حكمة عربية" },
-    { text: "العلم في الصغر كالنقش على الحجر.", author: "حكمة عربية" }
-];
+let deleteTarget = { type: null, sakId: null, participantId: null };
+let deleteModal = null;
+let settingsModal = null;
+let sakTypeModal = null;
 
-// ========================================
-// AMBIENT SOUND URLs (Web Audio API generated sounds)
-// ========================================
-// We'll use Web Audio API to generate ambient sounds
+// ============================================
+// INIT
+// ============================================
+document.addEventListener('DOMContentLoaded', function() {
+    deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    settingsModal = new bootstrap.Modal(document.getElementById('settingsModal'));
+    sakTypeModal = new bootstrap.Modal(document.getElementById('sakTypeModal'));
 
-// ========================================
-// DOM ELEMENTS
-// ========================================
-const DOM = {};
+    loadAllData();
+    setupListeners();
+    updateUI();
 
-function cacheDOM() {
-    // Header
-    DOM.clockTime = document.getElementById('clockTime');
-    DOM.liveDate = document.getElementById('liveDate');
-    DOM.themeToggle = document.getElementById('themeToggle');
-    DOM.themeIcon = document.getElementById('themeIcon');
-    DOM.focusToggle = document.getElementById('focusToggle');
-    DOM.settingsToggle = document.getElementById('settingsToggle');
-
-    // Stats
-    DOM.sessionsCount = document.getElementById('sessionsCount');
-    DOM.minutesCount = document.getElementById('minutesCount');
-    DOM.tasksCompletedEl = document.getElementById('tasksCompleted');
-    DOM.streakCount = document.getElementById('streakCount');
-
-    // Tasks
-    DOM.taskInput = document.getElementById('taskInput');
-    DOM.taskAddBtn = document.getElementById('taskAddBtn');
-    DOM.taskList = document.getElementById('taskList');
-    DOM.taskEmpty = document.getElementById('taskEmpty');
-    DOM.taskCount = document.getElementById('taskCount');
-
-    // Timer
-    DOM.tabPomodoro = document.getElementById('tabPomodoro');
-    DOM.tabShortBreak = document.getElementById('tabShortBreak');
-    DOM.tabLongBreak = document.getElementById('tabLongBreak');
-    DOM.timerTime = document.getElementById('timerTime');
-    DOM.timerModeLabel = document.getElementById('timerModeLabel');
-    DOM.timerStatus = document.getElementById('timerStatus');
-    DOM.ringProgress = document.getElementById('ringProgress');
-    DOM.btnMain = document.getElementById('btnMain');
-    DOM.btnMainIcon = document.getElementById('btnMainIcon');
-    DOM.btnMainText = document.getElementById('btnMainText');
-    DOM.btnReset = document.getElementById('btnReset');
-    DOM.btnSkip = document.getElementById('btnSkip');
-    DOM.dotsContainer = document.getElementById('dotsContainer');
-    DOM.sessionDots = document.getElementById('sessionDots');
-
-    // Quote
-    DOM.quoteText = document.getElementById('quoteText');
-    DOM.quoteAuthor = document.getElementById('quoteAuthor');
-    DOM.quoteRefresh = document.getElementById('quoteRefresh');
-
-    // Ambient
-    DOM.btnRain = document.getElementById('btnRain');
-    DOM.btnForest = document.getElementById('btnForest');
-    DOM.btnCafe = document.getElementById('btnCafe');
-    DOM.btnWaves = document.getElementById('btnWaves');
-    DOM.volumeSlider = document.getElementById('volumeSlider');
-
-    // Quick Settings
-    DOM.valPomodoro = document.getElementById('valPomodoro');
-    DOM.valShortBreak = document.getElementById('valShortBreak');
-    DOM.valLongBreak = document.getElementById('valLongBreak');
-    DOM.soundToggle = document.getElementById('soundToggle');
-    DOM.notifToggle = document.getElementById('notifToggle');
-
-    // App wrapper
-    DOM.appWrapper = document.getElementById('appWrapper');
-}
-
-// ========================================
-// AUDIO ENGINE (Web Audio API)
-// ========================================
-const AudioEngine = {
-    ctx: null,
-    ambientNode: null,
-    ambientGain: null,
-
-    init() {
-        if (!this.ctx) {
-            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        if (this.ctx.state === 'suspended') {
-            this.ctx.resume();
-        }
-    },
-
-    playTone(frequency, duration, type = 'sine', volume = 0.3) {
-        this.init();
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-
-        osc.type = type;
-        osc.frequency.setValueAtTime(frequency, this.ctx.currentTime);
-
-        gain.gain.setValueAtTime(0, this.ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(volume, this.ctx.currentTime + 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
-
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-
-        osc.start(this.ctx.currentTime);
-        osc.stop(this.ctx.currentTime + duration);
-    },
-
-    playSessionEnd() {
-        if (!AppState.soundEnabled) return;
-        const vol = (AppState.volume / 100) * 0.3;
-        this.playTone(523.25, 0.3, 'sine', vol);
-        setTimeout(() => this.playTone(659.25, 0.3, 'sine', vol), 200);
-        setTimeout(() => this.playTone(783.99, 0.5, 'sine', vol), 400);
-    },
-
-    playBreakStart() {
-        if (!AppState.soundEnabled) return;
-        const vol = (AppState.volume / 100) * 0.3;
-        this.playTone(440, 0.3, 'sine', vol);
-        setTimeout(() => this.playTone(349.23, 0.4, 'sine', vol), 250);
-    },
-
-    playTimerStart() {
-        if (!AppState.soundEnabled) return;
-        const vol = (AppState.volume / 100) * 0.15;
-        this.playTone(880, 0.08, 'sine', vol);
-        setTimeout(() => this.playTone(1046.5, 0.12, 'sine', vol), 80);
-    },
-
-    playTimerPause() {
-        if (!AppState.soundEnabled) return;
-        const vol = (AppState.volume / 100) * 0.12;
-        this.playTone(660, 0.1, 'sine', vol);
-        setTimeout(() => this.playTone(523.25, 0.15, 'sine', vol * 0.8), 100);
-    },
-
-    playClick() {
-        if (!AppState.soundEnabled) return;
-        const vol = (AppState.volume / 100) * 0.1;
-        this.playTone(800, 0.05, 'sine', vol);
-    },
-
-    // Generate ambient noise
-    createNoiseBuffer() {
-        this.init();
-        const bufferSize = this.ctx.sampleRate * 2;
-        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = Math.random() * 2 - 1;
-        }
-        return buffer;
-    },
-
-    startAmbient(type) {
-        this.init();
-        this.stopAmbient();
-
-        const buffer = this.createNoiseBuffer();
-        const source = this.ctx.createBufferSource();
-        source.buffer = buffer;
-        source.loop = true;
-
-        const filter = this.ctx.createBiquadFilter();
-        const gain = this.ctx.createGain();
-
-        const vol = (AppState.volume / 100) * 0.15;
-
-        switch(type) {
-            case 'rain':
-                filter.type = 'lowpass';
-                filter.frequency.value = 800;
-                gain.gain.value = vol;
-                break;
-            case 'forest':
-                filter.type = 'bandpass';
-                filter.frequency.value = 2000;
-                filter.Q.value = 0.5;
-                gain.gain.value = vol * 0.7;
-                break;
-            case 'cafe':
-                filter.type = 'lowpass';
-                filter.frequency.value = 1200;
-                gain.gain.value = vol * 0.8;
-                break;
-            case 'waves':
-                filter.type = 'lowpass';
-                filter.frequency.value = 400;
-                gain.gain.value = vol;
-                // Add LFO for wave effect
-                const lfo = this.ctx.createOscillator();
-                lfo.frequency.value = 0.1;
-                const lfoGain = this.ctx.createGain();
-                lfoGain.gain.value = vol * 0.5;
-                lfo.connect(lfoGain);
-                lfoGain.connect(gain.gain);
-                lfo.start();
-                this.ambientLfo = lfo;
-                break;
-        }
-
-        source.connect(filter);
-        filter.connect(gain);
-        gain.connect(this.ctx.destination);
-
-        source.start();
-
-        this.ambientNode = source;
-        this.ambientGain = gain;
-        this.ambientFilter = filter;
-    },
-
-    stopAmbient() {
-        if (this.ambientNode) {
-            try {
-                this.ambientNode.stop();
-                this.ambientNode.disconnect();
-            } catch(e) {}
-            this.ambientNode = null;
-        }
-        if (this.ambientLfo) {
-            try {
-                this.ambientLfo.stop();
-                this.ambientLfo.disconnect();
-            } catch(e) {}
-            this.ambientLfo = null;
-        }
-    },
-
-    updateAmbientVolume() {
-        if (this.ambientGain) {
-            const vol = (AppState.volume / 100) * 0.15;
-            this.ambientGain.gain.setTargetAtTime(vol, this.ctx.currentTime, 0.1);
-        }
-    }
-};
-
-// ========================================
-// LOCAL STORAGE
-// ========================================
-const Storage = {
-    save() {
-        const data = {
-            durations: AppState.durations,
-            completedSessions: AppState.completedSessions,
-            totalFocusMinutes: AppState.totalFocusMinutes,
-            tasks: AppState.tasks,
-            nextTaskId: AppState.nextTaskId,
-            soundEnabled: AppState.soundEnabled,
-            notificationsEnabled: AppState.notificationsEnabled,
-            autoStartBreak: AppState.autoStartBreak,
-            autoStartFocus: AppState.autoStartFocus,
-            volume: AppState.volume,
-            darkMode: AppState.darkMode,
-            streak: AppState.streak,
-            lastActiveDate: AppState.lastActiveDate,
-            tasksCompleted: AppState.tasksCompleted,
-            currentQuoteIndex: AppState.currentQuoteIndex
-        };
-        localStorage.setItem('focusflow_data', JSON.stringify(data));
-    },
-
-    load() {
-        try {
-            const data = JSON.parse(localStorage.getItem('focusflow_data'));
-            if (data) {
-                if (data.durations) AppState.durations = data.durations;
-                if (data.completedSessions !== undefined) AppState.completedSessions = data.completedSessions;
-                if (data.totalFocusMinutes !== undefined) AppState.totalFocusMinutes = data.totalFocusMinutes;
-                if (data.tasks) AppState.tasks = data.tasks;
-                if (data.nextTaskId !== undefined) AppState.nextTaskId = data.nextTaskId;
-                if (data.soundEnabled !== undefined) AppState.soundEnabled = data.soundEnabled;
-                if (data.notificationsEnabled !== undefined) AppState.notificationsEnabled = data.notificationsEnabled;
-                if (data.autoStartBreak !== undefined) AppState.autoStartBreak = data.autoStartBreak;
-                if (data.autoStartFocus !== undefined) AppState.autoStartFocus = data.autoStartFocus;
-                if (data.volume !== undefined) AppState.volume = data.volume;
-                if (data.darkMode !== undefined) AppState.darkMode = data.darkMode;
-                if (data.streak !== undefined) AppState.streak = data.streak;
-                if (data.lastActiveDate) AppState.lastActiveDate = data.lastActiveDate;
-                if (data.tasksCompleted !== undefined) AppState.tasksCompleted = data.tasksCompleted;
-                if (data.currentQuoteIndex !== undefined) AppState.currentQuoteIndex = data.currentQuoteIndex;
-            }
-        } catch (e) {
-            console.error('Error loading data:', e);
-        }
-    },
-
-    clear() {
-        localStorage.removeItem('focusflow_data');
-    }
-};
-
-// ========================================
-// CLOCK & DATE
-// ========================================
-function updateClock() {
+    // Date display
     const now = new Date();
-    
-    // Convert to 12-hour format
-    let hours = now.getHours();
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const seconds = String(now.getSeconds()).padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    
-    // Convert 24-hour to 12-hour (1-12, no leading zero)
-    hours = hours % 12;
-    hours = hours ? hours : 12; // 0 becomes 12
-    
-    DOM.clockTime.textContent = `${hours}:${minutes}:${seconds} ${ampm}`;
-
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    DOM.liveDate.textContent = now.toLocaleDateString('ar-SA', options);
-}
+    document.getElementById('currentDate').textContent = now.toLocaleDateString('ar-EG', options);
+    document.getElementById('year').textContent = now.getFullYear();
 
-// ========================================
-// THEME
-// ========================================
-function toggleTheme() {
-    AppState.darkMode = !AppState.darkMode;
-    applyTheme();
-    Storage.save();
-}
-
-function applyTheme() {
-    if (AppState.darkMode) {
-        document.documentElement.classList.add('dark');
-        DOM.themeIcon.classList.remove('uil-moon');
-        DOM.themeIcon.classList.add('uil-sun');
-    } else {
-        document.documentElement.classList.remove('dark');
-        DOM.themeIcon.classList.remove('uil-sun');
-        DOM.themeIcon.classList.add('uil-moon');
+    // Apply dark mode if set
+    if (systemSettings.darkMode) {
+        document.body.classList.add('dark-mode');
     }
-}
+});
 
-// ========================================
-// FOCUS MODE
-// ========================================
-function toggleFocusMode() {
-    AppState.focusMode = !AppState.focusMode;
+// ============================================
+// LOCAL STORAGE
+// ============================================
+function loadAllData() {
+    try {
+        const storedSaks = localStorage.getItem('hayatSaks_2026');
+        if (storedSaks) saks = JSON.parse(storedSaks);
 
-    const exitBtn = document.getElementById('focusExitBtn');
-
-    if (AppState.focusMode) {
-        document.body.classList.add('focus-mode');
-        DOM.focusToggle.classList.add('active');
-        DOM.focusOverlay.classList.add('active');
-        if (exitBtn) {
-            exitBtn.style.opacity = '';
-            exitBtn.style.pointerEvents = '';
+        const storedTypes = localStorage.getItem('hayatSakTypes_2026');
+        if (storedTypes) {
+            sakTypes = JSON.parse(storedTypes);
+        } else {
+            // Default sak types with default targets
+            sakTypes = [
+                { id: 'st1', name: 'صك جاموسي', defaultPrice: 13500, defaultTarget: 13500, intention: '', deliveryDate: '' },
+                { id: 'st2', name: 'صك بقري', defaultPrice: 15000, defaultTarget: 15000, intention: '', deliveryDate: '' },
+                { id: 'st3', name: 'صك ضاني', defaultPrice: 15000, defaultTarget: 15000, intention: '', deliveryDate: '' },
+                { id: 'st4', name: 'صك الخير', defaultPrice: 11500, defaultTarget: 11500, intention: '', deliveryDate: '' },
+                { id: 'st5', name: 'لحوم صدقات', defaultPrice: 400, defaultTarget: 400, intention: '', deliveryDate: '' }
+            ];
+            saveSakTypes();
         }
-    } else {
-        document.body.classList.remove('focus-mode');
-        DOM.focusToggle.classList.remove('active');
-        DOM.focusOverlay.classList.remove('active');
-        if (exitBtn) {
-            exitBtn.style.opacity = '';
-            exitBtn.style.pointerEvents = '';
+
+        const storedSettings = localStorage.getItem('hayatSettings_2026');
+        if (storedSettings) {
+            systemSettings = JSON.parse(storedSettings);
+        } else {
+            saveSystemSettingsData();
         }
+    } catch(e) {
+        console.error('Error loading data:', e);
+        saks = [];
     }
 }
 
-// ========================================
-// TIMER
-// ========================================
-function setMode(mode) {
-    if (AppState.isRunning) {
-        pauseTimer();
+function saveSaks() {
+    try {
+        localStorage.setItem('hayatSaks_2026', JSON.stringify(saks));
+        return true;
+    } catch(e) {
+        showToast('خطأ في حفظ بيانات الصكوك', 'danger');
+        return false;
     }
-
-    AppState.mode = mode;
-    AppState.totalTime = AppState.durations[mode] * 60;
-    AppState.timeLeft = AppState.totalTime;
-    AppState.isPaused = false;
-
-    updateModeTabs();
-    updateTimerDisplay();
-    updateRingProgress();
-    updateTimerStatus();
-    updateRingColors();
 }
 
-function updateModeTabs() {
-    [DOM.tabPomodoro, DOM.tabShortBreak, DOM.tabLongBreak].forEach(tab => {
-        tab.classList.remove('active');
+function saveSakTypes() {
+    try {
+        localStorage.setItem('hayatSakTypes_2026', JSON.stringify(sakTypes));
+        return true;
+    } catch(e) {
+        showToast('خطأ في حفظ أنواع الصكوك', 'danger');
+        return false;
+    }
+}
+
+function saveSystemSettingsData() {
+    try {
+        localStorage.setItem('hayatSettings_2026', JSON.stringify(systemSettings));
+        return true;
+    } catch(e) {
+        showToast('خطأ في حفظ الإعدادات', 'danger');
+        return false;
+    }
+}
+
+function generateId() {
+    return 'ID-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 5).toUpperCase();
+}
+
+// ============================================
+// EVENT LISTENERS
+// ============================================
+function setupListeners() {
+    // Ensure modals are properly initialized
+    document.querySelectorAll('.modal').forEach(modalEl => {
+        modalEl.addEventListener('shown.bs.modal', function () {
+            // Force modal to front if needed
+            this.style.zIndex = '1055';
+            const backdrop = document.querySelector('.modal-backdrop');
+            if (backdrop) backdrop.style.zIndex = '1050';
+        });
     });
 
-    if (AppState.mode === 'pomodoro') DOM.tabPomodoro.classList.add('active');
-    else if (AppState.mode === 'shortBreak') DOM.tabShortBreak.classList.add('active');
-    else if (AppState.mode === 'longBreak') DOM.tabLongBreak.classList.add('active');
-}
-
-function updateRingColors() {
-    const root = document.documentElement;
-    const ringStop1 = document.querySelector('.ring-stop-1');
-    const ringStop2 = document.querySelector('.ring-stop-2');
-
-    if (AppState.mode === 'pomodoro') {
-        root.style.setProperty('--ring-color-1', '#22c55e');
-        root.style.setProperty('--ring-color-2', '#4ade80');
-    } else if (AppState.mode === 'shortBreak') {
-        root.style.setProperty('--ring-color-1', '#f59e0b');
-        root.style.setProperty('--ring-color-2', '#fbbf24');
-    } else {
-        root.style.setProperty('--ring-color-1', '#3b82f6');
-        root.style.setProperty('--ring-color-2', '#60a5fa');
-    }
-}
-
-function formatTime(seconds) {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-}
-
-function updateTimerDisplay() {
-    DOM.timerTime.textContent = formatTime(AppState.timeLeft);
-    document.title = `${formatTime(AppState.timeLeft)} — فوكس فلو`;
-}
-
-function updateTimerStatus() {
-    if (AppState.isRunning) {
-        DOM.timerStatus.textContent = AppState.mode === 'pomodoro' ? 'جارٍ التركيز...' : 'في وقت الاستراحة...';
-        DOM.timerModeLabel.textContent = AppState.mode === 'pomodoro' ? 'جلسة تركيز' : 
-                                        AppState.mode === 'shortBreak' ? 'استراحة قصيرة' : 'استراحة طويلة';
-    } else if (AppState.isPaused) {
-        DOM.timerStatus.textContent = 'متوقف مؤقتاً';
-    } else {
-        DOM.timerStatus.textContent = AppState.mode === 'pomodoro' ? 'جاهز للتركيز' : 'جاهز للاستراحة';
-        DOM.timerModeLabel.textContent = AppState.mode === 'pomodoro' ? 'جلسة تركيز' : 
-                                        AppState.mode === 'shortBreak' ? 'استراحة قصيرة' : 'استراحة طويلة';
-    }
-}
-
-function updateRingProgress() {
-    const radius = 120;
-    const circumference = 2 * Math.PI * radius;
-    const progress = AppState.timeLeft / AppState.totalTime;
-    const offset = circumference * (1 - progress);
-
-    DOM.ringProgress.style.strokeDasharray = `${circumference}`;
-    DOM.ringProgress.style.strokeDashoffset = `${offset}`;
-}
-
-function startTimer() {
-    if (AppState.isRunning) return;
-
-    AudioEngine.init();
-    AudioEngine.playTimerStart();
-
-    AppState.isRunning = true;
-    AppState.isPaused = false;
-
-    DOM.btnMainText.textContent = 'إيقاف';
-    DOM.btnMainIcon.classList.remove('uil-play');
-    DOM.btnMainIcon.classList.add('uil-pause');
-    DOM.appWrapper.classList.add('timer-running');
-
-    updateTimerStatus();
-
-    AppState.timerInterval = setInterval(() => {
-        if (AppState.timeLeft > 0) {
-            AppState.timeLeft--;
-            updateTimerDisplay();
-            updateRingProgress();
-        } else {
-            completeTimer();
-        }
-    }, 1000);
-}
-
-function pauseTimer() {
-    if (!AppState.isRunning) return;
-
-    AudioEngine.playTimerPause();
-
-    clearInterval(AppState.timerInterval);
-    AppState.isRunning = false;
-    AppState.isPaused = true;
-
-    DOM.btnMainText.textContent = 'استمرار';
-    DOM.btnMainIcon.classList.remove('uil-pause');
-    DOM.btnMainIcon.classList.add('uil-play');
-    DOM.appWrapper.classList.remove('timer-running');
-
-    updateTimerStatus();
-}
-
-function resetTimer() {
-    clearInterval(AppState.timerInterval);
-    AppState.isRunning = false;
-    AppState.isPaused = false;
-    AppState.timeLeft = AppState.totalTime;
-
-    DOM.btnMainText.textContent = 'ابدأ';
-    DOM.btnMainIcon.classList.remove('uil-pause');
-    DOM.btnMainIcon.classList.add('uil-play');
-    DOM.appWrapper.classList.remove('timer-running');
-
-    updateTimerDisplay();
-    updateRingProgress();
-    updateTimerStatus();
-
-    document.title = 'فوكس فلو — مؤقت بومودورو المتميز';
-}
-
-function skipTimer() {
-    resetTimer();
-    // Move to next mode
-    if (AppState.mode === 'pomodoro') {
-        if (AppState.currentSession % AppState.maxSessionsBeforeLongBreak === 0) {
-            setMode('longBreak');
-        } else {
-            setMode('shortBreak');
-        }
-    } else {
-        setMode('pomodoro');
-    }
-}
-
-function completeTimer() {
-    clearInterval(AppState.timerInterval);
-    AppState.isRunning = false;
-    AppState.isPaused = false;
-    DOM.appWrapper.classList.remove('timer-running');
-
-    // Play sound
-    if (AppState.soundEnabled) {
-        AudioEngine.playSessionEnd();
-    }
-
-    // Show notification
-    if (AppState.notificationsEnabled && 'Notification' in window) {
-        new Notification('فوكس فلو', {
-            body: AppState.mode === 'pomodoro' ? 'اكتملت جلسة التركيز! حان وقت الاستراحة.' : 'انتهت الاستراحة! هل أنت مستعد للتركيز؟',
-            icon: 'https://unicons.iconscout.com/release/v4.0.8/svg/line/focus-target.svg'
-        });
-    }
-
-    if (AppState.mode === 'pomodoro') {
-        AppState.completedSessions++;
-        AppState.totalFocusMinutes += AppState.durations.pomodoro;
-        AppState.currentSession++;
-
-        updateStats();
-        updateSessionDots();
-        Storage.save();
-
-        // Show SweetAlert2 completion popup
-        Swal.fire({
-            customClass: {
-                popup: 'swal-focus-popup',
-                confirmButton: 'swal-confirm-focus'
-            },
-            icon: 'success',
-            title: 'اكتملت الجلسة!',
-            html: `
-                <div style="text-align:center; margin-bottom: 1rem;">
-                    <p style="color:var(--text-secondary); font-family:'Cairo','Tajawal',sans-serif; font-size:0.9rem; line-height:1.7;">
-                        أحسنت! لقد أكملت جلسة تركيز كاملة.<br>
-                        <strong style="color:var(--accent-focus-light);">استحق استراحتك المكتسبة.</strong>
-                    </p>
-                </div>
-            `,
-            showConfirmButton: true,
-            confirmButtonText: 'متابعة <i class="uil uil-check"></i>',
-            buttonsStyling: false,
-            timer: AppState.autoStartBreak ? 2500 : undefined,
-            timerProgressBar: AppState.autoStartBreak,
-            showClass: {
-                popup: 'animate__animated animate__fadeInDown'
-            },
-            hideClass: {
-                popup: 'animate__animated animate__fadeOutUp'
-            }
-        });
-
-        // Auto-start break
-        if (AppState.autoStartBreak) {
-            setTimeout(() => {
-                if (AppState.currentSession % AppState.maxSessionsBeforeLongBreak === 0) {
-                    setMode('longBreak');
-                } else {
-                    setMode('shortBreak');
-                }
-                AudioEngine.playBreakStart();
-                startTimer();
-            }, 2500);
-        } else {
-            if (AppState.currentSession % AppState.maxSessionsBeforeLongBreak === 0) {
-                setMode('longBreak');
-            } else {
-                setMode('shortBreak');
-            }
-        }
-    } else {
-        // Break complete
-        if (AppState.soundEnabled) AudioEngine.playBreakStart();
-
-        Swal.fire({
-            customClass: {
-                popup: 'swal-break-popup',
-                confirmButton: 'swal-confirm-break'
-            },
-            icon: 'info',
-            title: 'انتهت الاستراحة!',
-            html: `
-                <div style="text-align:center; margin-bottom: 1rem;">
-                    <p style="color:var(--text-secondary); font-family:'Cairo','Tajawal',sans-serif; font-size:0.9rem; line-height:1.7;">
-                        هل أنت مستعد للعودة إلى العمل؟<br>
-                        <strong style="color:var(--accent-short-light);">حافظ على تركيزك وحقق أهدافك!</strong>
-                    </p>
-                </div>
-            `,
-            showConfirmButton: true,
-            confirmButtonText: 'لنبدأ! <i class="uil uil-rocket"></i>',
-            buttonsStyling: false,
-            timer: AppState.autoStartFocus ? 2500 : undefined,
-            timerProgressBar: AppState.autoStartFocus,
-        });
-
-        if (AppState.autoStartFocus) {
-            setTimeout(() => {
-                setMode('pomodoro');
-                startTimer();
-            }, 2500);
-        } else {
-            setMode('pomodoro');
-        }
-    }
-
-    DOM.btnMainText.textContent = 'ابدأ';
-    DOM.btnMainIcon.classList.remove('uil-pause');
-    DOM.btnMainIcon.classList.add('uil-play');
-    updateTimerStatus();
-}
-
-function handleMainButton() {
-    AudioEngine.init();
-    if (AppState.isRunning) {
-        pauseTimer();
-    } else {
-        startTimer();
-    }
-}
-
-// ========================================
-// SESSION DOTS
-// ========================================
-function updateSessionDots() {
-    const dots = DOM.dotsContainer.querySelectorAll('.dot');
-    dots.forEach((dot, index) => {
-        dot.classList.remove('active');
-        if (index < AppState.completedSessions % AppState.maxSessionsBeforeLongBreak) {
-            dot.classList.add('active');
+    // Sak type dropdown auto-fill target and other fields
+    document.getElementById('sakType').addEventListener('change', function() {
+        const typeId = this.value;
+        const type = sakTypes.find(t => t.id === typeId);
+        if (type) {
+            document.getElementById('sakTarget').value = type.defaultTarget || type.defaultPrice || 0;
+            document.getElementById('sakIntention').value = type.intention || '';
+            document.getElementById('sakDeliveryDate').value = type.deliveryDate || '';
         }
     });
+
+    // Create sak form
+    document.getElementById('createSakForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        createSak();
+    });
+
+    // Search
+    const searchInput = document.getElementById('searchInput');
+    const clearBtn = document.getElementById('clearSearch');
+
+    searchInput.addEventListener('input', function() {
+        clearBtn.style.display = this.value ? 'flex' : 'none';
+        renderSaks();
+    });
+
+    clearBtn.addEventListener('click', function() {
+        searchInput.value = '';
+        clearBtn.style.display = 'none';
+        renderSaks();
+    });
+
+    // Export buttons
+    document.getElementById('btnPrint').addEventListener('click', () => window.print());
+    document.getElementById('btnExcel').addEventListener('click', exportExcel);
+    document.getElementById('btnPdf').addEventListener('click', exportPDF);
+
+    // Delete confirmation
+    document.getElementById('confirmDelete').addEventListener('click', executeDelete);
 }
 
-function initSessionDots() {
-    DOM.dotsContainer.innerHTML = '';
-    for (let i = 0; i < AppState.maxSessionsBeforeLongBreak; i++) {
-        const dot = document.createElement('div');
-        dot.className = 'dot';
-        DOM.dotsContainer.appendChild(dot);
-    }
-    updateSessionDots();
-}
+// ============================================
+// CREATE SAK
+// ============================================
+function createSak() {
+    const typeId = document.getElementById('sakType').value;
+    const targetAmount = parseFloat(document.getElementById('sakTarget').value);
+    const intention = document.getElementById('sakIntention').value.trim();
+    const deliveryDate = document.getElementById('sakDeliveryDate').value;
 
-// ========================================
-// STATS
-// ========================================
-function updateStats() {
-    DOM.sessionsCount.textContent = AppState.completedSessions;
-    DOM.minutesCount.textContent = AppState.totalFocusMinutes;
-    DOM.tasksCompletedEl.textContent = AppState.tasksCompleted;
-    DOM.streakCount.textContent = AppState.streak;
-}
+    if (!typeId) { showToast('يرجى اختيار نوع الصك', 'warning'); return; }
+    if (!targetAmount || targetAmount <= 0) { showToast('يرجى إدخال تارجت صحيح', 'warning'); return; }
 
-function checkStreak() {
-    const today = new Date().toDateString();
-    const yesterday = new Date(Date.now() - 86400000).toDateString();
+    const type = sakTypes.find(t => t.id === typeId);
+    if (!type) { showToast('نوع الصك غير موجود', 'danger'); return; }
 
-    if (AppState.lastActiveDate === yesterday) {
-        // Continued streak
-    } else if (AppState.lastActiveDate !== today) {
-        // Streak broken or new
-        if (AppState.lastActiveDate && AppState.lastActiveDate !== yesterday) {
-            AppState.streak = 0;
-        }
-    }
-
-    AppState.lastActiveDate = today;
-    Storage.save();
-    updateStats();
-}
-
-// ========================================
-// TASKS
-// ========================================
-function addTask() {
-    const text = DOM.taskInput.value.trim();
-    if (!text) return;
-
-    const task = {
-        id: AppState.nextTaskId++,
-        text: text,
-        completed: false,
-        createdAt: Date.now()
+    const sak = {
+        id: generateId(),
+        typeId: typeId,
+        typeName: type.name,
+        targetAmount: targetAmount,
+        intention: intention || (type.intention || ''),
+        deliveryDate: deliveryDate || (type.deliveryDate || ''),
+        participants: [],
+        createdAt: new Date().toISOString(),
+        collapsed: false
     };
 
-    AppState.tasks.push(task);
-    DOM.taskInput.value = '';
+    saks.unshift(sak);
 
-    renderTasks();
-    Storage.save();
-    AudioEngine.playClick();
+    if (saveSaks()) {
+        document.getElementById('createSakForm').reset();
+        updateUI();
+        showToast('تم إنشاء الصك بنجاح', 'success');
+    }
 }
 
-function toggleTask(id) {
-    const task = AppState.tasks.find(t => t.id === id);
-    if (task) {
-        task.completed = !task.completed;
-        if (task.completed) {
-            AppState.tasksCompleted++;
-        } else {
-            AppState.tasksCompleted = Math.max(0, AppState.tasksCompleted - 1);
+// ============================================
+// ADD PARTICIPANT
+// ============================================
+function addParticipant(sakId) {
+    const sak = saks.find(s => s.id === sakId);
+    if (!sak) return;
+
+    const name = document.getElementById('partName-' + sakId).value.trim();
+    const amount = parseFloat(document.getElementById('partAmount-' + sakId).value);
+    const intention = document.getElementById('partIntention-' + sakId).value.trim();
+    const deliveryDate = document.getElementById('partDeliveryDate-' + sakId).value;
+    const notes = document.getElementById('partNotes-' + sakId).value.trim();
+
+    if (!name) { showToast('يرجى إدخال اسم المساهم', 'warning'); return; }
+    if (!amount || amount <= 0) { showToast('يرجى إدخال مبلغ صحيح', 'warning'); return; }
+
+    sak.participants.push({
+        id: generateId(),
+        name: name,
+        amount: amount,
+        intention: intention || sak.intention || '',
+        deliveryDate: deliveryDate || sak.deliveryDate || '',
+        notes: notes,
+        createdAt: new Date().toISOString()
+    });
+
+    if (saveSaks()) {
+        document.getElementById('partName-' + sakId).value = '';
+        document.getElementById('partAmount-' + sakId).value = '';
+        document.getElementById('partIntention-' + sakId).value = '';
+        document.getElementById('partDeliveryDate-' + sakId).value = '';
+        document.getElementById('partNotes-' + sakId).value = '';
+        updateUI();
+        showToast('تم إضافة المساهمة بنجاح', 'success');
+    }
+}
+
+// ============================================
+// DELETE
+// ============================================
+function confirmDeleteSak(sakId) {
+    deleteTarget = { type: 'sak', sakId: sakId };
+    document.getElementById('deleteMessage').textContent = 'سيتم حذف الصك وجميع المساهمين نهائياً';
+    deleteModal.show();
+}
+
+function confirmDeleteParticipant(sakId, participantId) {
+    deleteTarget = { type: 'participant', sakId: sakId, participantId: participantId };
+    document.getElementById('deleteMessage').textContent = 'سيتم حذف المساهمة نهائياً';
+    deleteModal.show();
+}
+
+function executeDelete() {
+    if (deleteTarget.type === 'sak') {
+        const idx = saks.findIndex(s => s.id === deleteTarget.sakId);
+        if (idx !== -1) {
+            saks.splice(idx, 1);
+            saveSaks();
+            updateUI();
+            showToast('تم حذف الصك بنجاح', 'success');
         }
-        renderTasks();
-        updateStats();
-        Storage.save();
+    } else if (deleteTarget.type === 'participant') {
+        const sak = saks.find(s => s.id === deleteTarget.sakId);
+        if (sak) {
+            const idx = sak.participants.findIndex(p => p.id === deleteTarget.participantId);
+            if (idx !== -1) {
+                sak.participants.splice(idx, 1);
+                saveSaks();
+                updateUI();
+                showToast('تم حذف المساهمة بنجاح', 'success');
+            }
+        }
+    } else if (deleteTarget.type === 'sakType') {
+        const idx = sakTypes.findIndex(t => t.id === deleteTarget.sakTypeId);
+        if (idx !== -1) {
+            // Check if any sak uses this type
+            const used = saks.some(s => s.typeId === deleteTarget.sakTypeId);
+            if (used) {
+                showToast('لا يمكن الحذف: نوع الصك مستخدم في صكوك مسجلة', 'warning');
+                deleteModal.hide();
+                return;
+            }
+            sakTypes.splice(idx, 1);
+            saveSakTypes();
+            renderSakTypesList();
+            populateSakTypeDropdown();
+            showToast('تم حذف نوع الصك بنجاح', 'success');
+        }
+    }
+    deleteModal.hide();
+}
+
+// ============================================
+// TOGGLE COLLAPSE
+// ============================================
+function toggleSak(sakId) {
+    const sak = saks.find(s => s.id === sakId);
+    if (sak) {
+        sak.collapsed = !sak.collapsed;
+        saveSaks();
+        renderSaks();
     }
 }
 
-function deleteTask(id) {
-    const task = AppState.tasks.find(t => t.id === id);
-    if (task && task.completed) {
-        AppState.tasksCompleted = Math.max(0, AppState.tasksCompleted - 1);
-    }
-    AppState.tasks = AppState.tasks.filter(t => t.id !== id);
-    renderTasks();
+// ============================================
+// RENDER
+// ============================================
+function updateUI() {
+    populateSakTypeDropdown();
+    renderSaks();
     updateStats();
-    Storage.save();
+    updateCampaignProgress();
+    updateHeaderInfo();
 }
 
-function renderTasks() {
-    DOM.taskList.innerHTML = '';
+function populateSakTypeDropdown() {
+    const select = document.getElementById('sakType');
+    const currentValue = select.value;
+    select.innerHTML = '<option value="" disabled selected>اختر نوع الصك</option>';
+    sakTypes.forEach(type => {
+        const option = document.createElement('option');
+        option.value = type.id;
+        option.textContent = type.name + ' - ' + formatNumber(type.defaultPrice) + ' ج';
+        select.appendChild(option);
+    });
+    if (currentValue && sakTypes.find(t => t.id === currentValue)) {
+        select.value = currentValue;
+    }
+}
 
-    if (AppState.tasks.length === 0) {
-        DOM.taskEmpty.style.display = 'block';
-        DOM.taskCount.textContent = '0';
+function updateHeaderInfo() {
+    document.getElementById('orgNameDisplay').textContent = systemSettings.orgName || 'صناع الحياة';
+    document.getElementById('headerTitle').textContent = systemSettings.pageTitle || 'نظام صكوك الأضاحي';
+    document.getElementById('footerOrgName').textContent = systemSettings.orgName || 'صناع الحياة';
+    document.getElementById('pageTitle').textContent = (systemSettings.pageTitle || 'نظام صكوك الأضاحي') + ' | ' + (systemSettings.orgName || 'صناع الحياة');
+}
+
+function renderSaks() {
+    const container = document.getElementById('saksContainer');
+    const search = document.getElementById('searchInput').value.toLowerCase().trim();
+
+    let filtered = saks;
+    if (search) {
+        filtered = saks.filter(sak => {
+            const type = sakTypes.find(t => t.id === sak.typeId);
+            const typeName = type ? type.name.toLowerCase() : '';
+            const matchSak = typeName.includes(search) ||
+                           sak.intention.toLowerCase().includes(search);
+            const matchParticipant = sak.participants.some(p => 
+                p.name.toLowerCase().includes(search) || 
+                p.intention.toLowerCase().includes(search)
+            );
+            return matchSak || matchParticipant;
+        });
+    }
+
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon"><i class="uil uil-clipboard-blank"></i></div>
+                <h4>${saks.length === 0 ? 'لا توجد صكوك مسجلة' : 'لا توجد نتائج'}</h4>
+                <p class="text-muted">${saks.length === 0 ? 'استخدم النموذج أعلاه لإنشاء أول صك' : 'جرب البحث بكلمات مختلفة'}</p>
+            </div>
+        `;
         return;
     }
 
-    DOM.taskEmpty.style.display = 'none';
-    DOM.taskCount.textContent = AppState.tasks.length;
+    container.innerHTML = filtered.map(sak => renderSakCard(sak)).join('');
+}
 
-    AppState.tasks.forEach(task => {
-        const item = document.createElement('div');
-        item.className = `task-item${task.completed ? ' completed' : ''}`;
+function renderSakCard(sak) {
+    const type = sakTypes.find(t => t.id === sak.typeId);
+    const typeName = type ? type.name : sak.typeName || 'صك غير معروف';
 
-        item.innerHTML = `
-            <div class="task-checkbox ${task.completed ? 'checked' : ''}" data-id="${task.id}">
-                ${task.completed ? '<i class="uil uil-check"></i>' : ''}
+    const collected = sak.participants.reduce((sum, p) => sum + p.amount, 0);
+    const remaining = sak.targetAmount - collected;
+    const percent = sak.targetAmount > 0 ? Math.min((collected / sak.targetAmount) * 100, 100) : 0;
+
+    let progressClass = 'low';
+    if (percent >= 100) progressClass = 'complete';
+    else if (percent >= 60) progressClass = 'near';
+
+    const percentColor = percent >= 100 ? 'var(--green)' : percent >= 60 ? 'var(--yellow)' : 'var(--red)';
+
+    const participantsHtml = sak.collapsed ? '' : renderParticipantsSection(sak);
+    const toggleIcon = sak.collapsed ? 'uil-angle-down' : 'uil-angle-up';
+    const toggleText = sak.collapsed ? 'عرض' : 'إخفاء';
+
+    return `
+        <div class="sak-card" id="sak-${sak.id}">
+            <div class="sak-header">
+                <div class="sak-info">
+                    <h3 class="sak-name">
+                        <i class="uil uil-award"></i>
+                        ${escapeHtml(typeName)}
+                    </h3>
+                    <div class="sak-meta">
+                        ${sak.intention ? `<span><i class="uil uil-heart"></i> ${escapeHtml(sak.intention)}</span>` : ''}
+                        ${sak.deliveryDate ? `<span><i class="uil uil-calendar-alt"></i> ${formatDate(sak.deliveryDate)}</span>` : ''}
+                        <span><i class="uil uil-users-alt"></i> ${sak.participants.length} مساهم</span>
+                        <span><i class="uil uil-clock"></i> ${formatDateTime(sak.createdAt)}</span>
+                    </div>
+                </div>
+                <div class="sak-actions">
+                    <button class="btn-sak-action btn-toggle" onclick="toggleSak('${sak.id}')" title="${toggleText}">
+                        <i class="uil ${toggleIcon}"></i>
+                    </button>
+                    <button class="btn-sak-action btn-delete-sak" onclick="confirmDeleteSak('${sak.id}')" title="حذف">
+                        <i class="uil uil-trash-alt"></i>
+                    </button>
+                </div>
             </div>
-            <span class="task-text">${escapeHtml(task.text)}</span>
-            <button class="task-delete" data-id="${task.id}">
-                <i class="uil uil-trash-alt"></i>
-            </button>
+            <div class="sak-body">
+                <div class="sak-progress">
+                    <div class="progress-label">
+                        <span>نسبة الإنجاز</span>
+                        <span class="percent" style="color:${percentColor}">${percent.toFixed(1)}%</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar ${progressClass}" style="width: ${percent}%"></div>
+                    </div>
+                </div>
+                <div class="amounts-grid">
+                    <div class="amount-item amount-required">
+                        <span class="amount-value">${formatNumber(sak.targetAmount)}</span>
+                        <span class="amount-label">التارجت (ج.م)</span>
+                    </div>
+                    <div class="amount-item amount-collected">
+                        <span class="amount-value">${formatNumber(collected)}</span>
+                        <span class="amount-label">المجمع (ج.م)</span>
+                    </div>
+                    <div class="amount-item amount-remaining">
+                        <span class="amount-value">${formatNumber(Math.max(remaining, 0))}</span>
+                        <span class="amount-label">المتبقي (ج.م)</span>
+                    </div>
+                </div>
+                ${participantsHtml}
+            </div>
+        </div>
+    `;
+}
+
+function renderParticipantsSection(sak) {
+    const formHtml = `
+        <div class="participant-form">
+            <div class="participant-form-title">
+                <i class="uil uil-user-plus"></i> إضافة مساهمة جديدة
+            </div>
+            <div class="row g-2">
+                <div class="col-sm-3">
+                    <input type="text" class="form-control form-control-sm" id="partName-${sak.id}" placeholder="الاسم *">
+                </div>
+                <div class="col-sm-2">
+                    <input type="number" class="form-control form-control-sm" id="partAmount-${sak.id}" placeholder="المبلغ *" min="1">
+                </div>
+                <div class="col-sm-2">
+                    <input type="text" class="form-control form-control-sm" id="partIntention-${sak.id}" placeholder="النية" value="${escapeHtml(sak.intention || '')}">
+                </div>
+                <div class="col-sm-2">
+                    <input type="date" class="form-control form-control-sm" id="partDeliveryDate-${sak.id}" value="${sak.deliveryDate || ''}">
+                </div>
+                <div class="col-sm-2">
+                    <input type="text" class="form-control form-control-sm" id="partNotes-${sak.id}" placeholder="ملاحظات">
+                </div>
+                <div class="col-sm-1">
+                    <button class="btn btn-add-participant btn-sm w-100" onclick="addParticipant('${sak.id}')">
+                        <i class="uil uil-plus"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    if (sak.participants.length === 0) {
+        return formHtml + `
+            <div class="participant-empty">
+                <i class="uil uil-users-alt"></i>
+                <p class="mb-0">لا توجد مساهمات بعد. أضف أول مساهمة أعلاه.</p>
+            </div>
         `;
+    }
 
-        DOM.taskList.appendChild(item);
+    const rows = sak.participants.map((p, idx) => `
+        <tr>
+            <td><strong>${escapeHtml(p.name)}</strong></td>
+            <td class="fw-bold text-green">${formatNumber(p.amount)} ج.م</td>
+            <td>${escapeHtml(p.intention || '-')}</td>
+            <td>${p.deliveryDate ? formatDate(p.deliveryDate) : '-'}</td>
+            <td><small class="text-muted">${formatDateTime(p.createdAt)}</small></td>
+            <td><small class="text-muted">${escapeHtml(p.notes || '-')}</small></td>
+            <td>
+                <button class="btn-delete-participant" onclick="confirmDeleteParticipant('${sak.id}', '${p.id}')" title="حذف">
+                    <i class="uil uil-trash-alt"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+
+    return formHtml + `
+        <div class="table-responsive">
+            <table class="table participants-table">
+                <thead>
+                    <tr>
+                        <th>الاسم</th>
+                        <th>المبلغ</th>
+                        <th>النية</th>
+                        <th>تاريخ التسليم</th>
+                        <th>وقت التسجيل</th>
+                        <th>ملاحظات</th>
+                        <th style="width:50px"></th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+        </div>
+    `;
+}
+
+// ============================================
+// CAMPAIGN PROGRESS - SUM OF ALL SAK TARGETS
+// ============================================
+function updateCampaignProgress() {
+    // Campaign target = sum of all sak targets
+    const totalTarget = saks.reduce((sum, s) => sum + s.targetAmount, 0);
+    const totalCollected = saks.reduce((sum, s) => sum + s.participants.reduce((pSum, p) => pSum + p.amount, 0), 0);
+    const percent = totalTarget > 0 ? Math.min((totalCollected / totalTarget) * 100, 100) : 0;
+
+    document.getElementById('campaignTargetDisplay').textContent = formatNumber(totalTarget);
+    document.getElementById('campaignTarget').textContent = formatNumber(totalTarget);
+    document.getElementById('campaignCollected').textContent = formatNumber(totalCollected);
+    document.getElementById('campaignProgressBar').style.width = percent + '%';
+}
+
+// ============================================
+// STATISTICS
+// ============================================
+function updateStats() {
+    const totalSaks = saks.length;
+    const totalRequired = saks.reduce((sum, s) => sum + s.targetAmount, 0);
+    const totalCollected = saks.reduce((sum, s) => sum + s.participants.reduce((pSum, p) => pSum + p.amount, 0), 0);
+    const totalRemaining = totalRequired - totalCollected;
+    const percent = totalRequired > 0 ? ((totalCollected / totalRequired) * 100).toFixed(1) : '0.0';
+
+    animateNumber('statSaks', totalSaks);
+    animateNumber('statRequired', totalRequired);
+    animateNumber('statCollected', totalCollected);
+    animateNumber('statRemaining', Math.max(totalRemaining, 0));
+    document.getElementById('statPercent').textContent = percent + '%';
+}
+
+function animateNumber(id, target) {
+    const el = document.getElementById(id);
+    const current = parseInt(el.textContent.replace(/,/g, '').replace('%', '')) || 0;
+    if (current === target) return;
+
+    const duration = 600;
+    const start = performance.now();
+
+    function update(now) {
+        const progress = Math.min((now - start) / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        el.textContent = formatNumber(Math.round(current + (target - current) * eased));
+        if (progress < 1) requestAnimationFrame(update);
+    }
+    requestAnimationFrame(update);
+}
+
+// ============================================
+// SETTINGS
+// ============================================
+function openSettings() {
+    document.getElementById('settingOrgName').value = systemSettings.orgName || '';
+    document.getElementById('settingPageTitle').value = systemSettings.pageTitle || '';
+    document.getElementById('settingDarkMode').checked = systemSettings.darkMode || false;
+
+    renderSakTypesList();
+
+    settingsModal.show();
+}
+
+function saveSystemSettings() {
+    systemSettings.orgName = document.getElementById('settingOrgName').value.trim() || 'صناع الحياة';
+    systemSettings.pageTitle = document.getElementById('settingPageTitle').value.trim() || 'نظام صكوك الأضاحي';
+    systemSettings.darkMode = document.getElementById('settingDarkMode').checked;
+
+    if (saveSystemSettingsData()) {
+        if (systemSettings.darkMode) {
+            document.body.classList.add('dark-mode');
+        } else {
+            document.body.classList.remove('dark-mode');
+        }
+        updateHeaderInfo();
+        showToast('تم حفظ الإعدادات بنجاح', 'success');
+    }
+}
+
+// ============================================
+// SAK TYPES MANAGEMENT
+// ============================================
+function renderSakTypesList() {
+    const container = document.getElementById('sakTypesList');
+    if (sakTypes.length === 0) {
+        container.innerHTML = '<p class="text-muted text-center py-3">لا توجد أنواع صكوك</p>';
+        return;
+    }
+
+    container.innerHTML = sakTypes.map(type => `
+        <div class="settings-item">
+            <div class="settings-item-info">
+                <div class="settings-item-name">${escapeHtml(type.name)}</div>
+                <div class="settings-item-meta">
+                    السعر: ${formatNumber(type.defaultPrice)} ج.م | 
+                    التارجت: ${formatNumber(type.defaultTarget || type.defaultPrice)} ج.م
+                    ${type.intention ? ' | النية: ' + escapeHtml(type.intention) : ''}
+                    ${type.deliveryDate ? ' | التسليم: ' + formatDate(type.deliveryDate) : ''}
+                </div>
+            </div>
+            <div class="settings-item-actions">
+                <button class="btn btn-sm btn-outline-primary" onclick="editSakType('${type.id}')">
+                    <i class="uil uil-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteSakType('${type.id}')">
+                    <i class="uil uil-trash-alt"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function openAddSakTypeModal() {
+    document.getElementById('sakTypeModalTitle').innerHTML = '<i class="uil uil-plus-circle me-2"></i> إضافة نوع صك';
+    document.getElementById('editSakTypeId').value = '';
+    document.getElementById('sakTypeName').value = '';
+    document.getElementById('sakTypePrice').value = '';
+    document.getElementById('sakTypeTarget').value = '';
+    document.getElementById('sakTypeIntention').value = '';
+    document.getElementById('sakTypeDeliveryDate').value = '';
+    sakTypeModal.show();
+}
+
+function editSakType(typeId) {
+    const type = sakTypes.find(t => t.id === typeId);
+    if (!type) return;
+
+    document.getElementById('sakTypeModalTitle').innerHTML = '<i class="uil uil-edit me-2"></i> تعديل نوع الصك';
+    document.getElementById('editSakTypeId').value = typeId;
+    document.getElementById('sakTypeName').value = type.name;
+    document.getElementById('sakTypePrice').value = type.defaultPrice;
+    document.getElementById('sakTypeTarget').value = type.defaultTarget || type.defaultPrice;
+    document.getElementById('sakTypeIntention').value = type.intention || '';
+    document.getElementById('sakTypeDeliveryDate').value = type.deliveryDate || '';
+    sakTypeModal.show();
+}
+
+function saveSakType() {
+    const id = document.getElementById('editSakTypeId').value;
+    const name = document.getElementById('sakTypeName').value.trim();
+    const price = parseFloat(document.getElementById('sakTypePrice').value);
+    const target = parseFloat(document.getElementById('sakTypeTarget').value) || price;
+    const intention = document.getElementById('sakTypeIntention').value.trim();
+    const deliveryDate = document.getElementById('sakTypeDeliveryDate').value;
+
+    if (!name) { showToast('يرجى إدخال اسم الصك', 'warning'); return; }
+    if (!price || price < 0) { showToast('يرجى إدخال سعر صحيح', 'warning'); return; }
+
+    if (id) {
+        const type = sakTypes.find(t => t.id === id);
+        if (type) {
+            type.name = name;
+            type.defaultPrice = price;
+            type.defaultTarget = target;
+            type.intention = intention;
+            type.deliveryDate = deliveryDate;
+        }
+    } else {
+        sakTypes.push({
+            id: generateId(),
+            name: name,
+            defaultPrice: price,
+            defaultTarget: target,
+            intention: intention,
+            deliveryDate: deliveryDate
+        });
+    }
+
+    if (saveSakTypes()) {
+        sakTypeModal.hide();
+        renderSakTypesList();
+        populateSakTypeDropdown();
+        showToast(id ? 'تم تعديل نوع الصك بنجاح' : 'تم إضافة نوع الصك بنجاح', 'success');
+    }
+}
+
+function confirmDeleteSakType(typeId) {
+    deleteTarget = { type: 'sakType', sakTypeId: typeId };
+    document.getElementById('deleteMessage').textContent = 'سيتم حذف نوع الصك نهائياً';
+    deleteModal.show();
+}
+
+// ============================================
+// EXPORT EXCEL
+// ============================================
+function exportExcel() {
+    if (saks.length === 0) {
+        showToast('لا توجد بيانات للتصدير', 'warning');
+        return;
+    }
+
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1: Summary
+    const totalRequired = saks.reduce((sum, s) => sum + s.targetAmount, 0);
+    const totalCollected = saks.reduce((sum, s) => sum + s.participants.reduce((pSum, p) => pSum + p.amount, 0), 0);
+    const totalRemaining = Math.max(totalRequired - totalCollected, 0);
+    const totalParticipants = saks.reduce((sum, s) => sum + s.participants.length, 0);
+    const percent = totalRequired > 0 ? ((totalCollected / totalRequired) * 100).toFixed(1) + '%' : '0%';
+
+    const summaryRows = [
+        [systemSettings.orgName + ' | ' + systemSettings.pageTitle, '', '', '', '', ''],
+        ['حملة الأضاحي 2026', '', '', '', '', ''],
+        ['', '', '', '', '', ''],
+        ['ملخص الحملة', '', '', '', '', ''],
+        ['', '', '', '', '', ''],
+        ['إجمالي التارجت', 'إجمالي المجمع', 'إجمالي المتبقي', 'نسبة الإنجاز', 'عدد الصكوك', 'عدد المساهمين'],
+        [totalRequired, totalCollected, totalRemaining, percent, saks.length, totalParticipants]
+    ];
+
+    const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+    wsSummary['!cols'] = [{ wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 16 }, { wch: 14 }, { wch: 16 }];
+    wsSummary['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: 5 } },
+        { s: { r: 3, c: 0 }, e: { r: 3, c: 5 } }
+    ];
+    XLSX.utils.book_append_sheet(wb, wsSummary, 'ملخص الحملة');
+
+    // Sheet 2: Sak Details
+    const sakRows = [
+        ['تفاصيل الصكوك', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', ''],
+        ['نوع الصك', 'النية', 'تاريخ التسليم', 'التارجت', 'المجمع', 'المتبقي', 'نسبة الإنجاز', 'عدد المساهمين']
+    ];
+
+    saks.forEach(sak => {
+        const type = sakTypes.find(t => t.id === sak.typeId);
+        const typeName = type ? type.name : sak.typeName || 'غير معروف';
+        const collected = sak.participants.reduce((sum, p) => sum + p.amount, 0);
+        const remaining = Math.max(sak.targetAmount - collected, 0);
+        const pct = sak.targetAmount > 0 ? ((collected / sak.targetAmount) * 100).toFixed(1) + '%' : '0%';
+        sakRows.push([
+            typeName,
+            sak.intention || '',
+            sak.deliveryDate || '',
+            sak.targetAmount,
+            collected,
+            remaining,
+            pct,
+            sak.participants.length
+        ]);
     });
 
-    // Add event listeners
-    DOM.taskList.querySelectorAll('.task-checkbox').forEach(cb => {
-        cb.addEventListener('click', () => toggleTask(parseInt(cb.dataset.id)));
+    const wsSaks = XLSX.utils.aoa_to_sheet(sakRows);
+    wsSaks['!cols'] = [{ wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
+    wsSaks['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }];
+    XLSX.utils.book_append_sheet(wb, wsSaks, 'تفاصيل الصكوك');
+
+    // Sheet 3: Participants
+    const partRows = [
+        ['تفاصيل المساهمين', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', ''],
+        ['نوع الصك', 'اسم المساهم', 'المبلغ', 'النية', 'تاريخ التسليم', 'ملاحظات', 'تاريخ التسجيل']
+    ];
+
+    saks.forEach(sak => {
+        const type = sakTypes.find(t => t.id === sak.typeId);
+        const typeName = type ? type.name : sak.typeName || 'غير معروف';
+        if (sak.participants.length === 0) {
+            partRows.push([typeName, '(لا يوجد مساهمين)', '', '', '', '', '']);
+        } else {
+            sak.participants.forEach(p => {
+                partRows.push([
+                    typeName,
+                    p.name,
+                    p.amount,
+                    p.intention || '-',
+                    p.deliveryDate || '-',
+                    p.notes || '-',
+                    new Date(p.createdAt).toLocaleString('ar-EG')
+                ]);
+            });
+        }
     });
 
-    DOM.taskList.querySelectorAll('.task-delete').forEach(btn => {
-        btn.addEventListener('click', () => deleteTask(parseInt(btn.dataset.id)));
+    const wsParts = XLSX.utils.aoa_to_sheet(partRows);
+    wsParts['!cols'] = [{ wch: 18 }, { wch: 20 }, { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 22 }, { wch: 22 }];
+    wsParts['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }];
+    XLSX.utils.book_append_sheet(wb, wsParts, 'تفاصيل المساهمين');
+
+    XLSX.writeFile(wb, 'حملة-الأضاحي-2026-' + new Date().toISOString().split('T')[0] + '.xlsx');
+    showToast('تم تصدير Excel بنجاح', 'success');
+}
+
+// ============================================
+// EXPORT PDF
+// ============================================
+function exportPDF() {
+    if (saks.length === 0) {
+        showToast('لا توجد بيانات للتصدير', 'warning');
+        return;
+    }
+
+    const element = document.querySelector('.main-container');
+    const opt = {
+        margin: [10, 10, 10, 10],
+        filename: 'حملة-الأضاحي-2026-' + new Date().toISOString().split('T')[0] + '.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    // Temporarily hide buttons for clean PDF
+    const buttons = document.querySelectorAll('.btn, .btn-sak-action, .participant-form, .search-section, .create-section, .export-section');
+    buttons.forEach(b => b.style.display = 'none');
+
+    html2pdf().set(opt).from(element).save().then(() => {
+        buttons.forEach(b => b.style.display = '');
+        showToast('تم تصدير PDF بنجاح', 'success');
+    }).catch(() => {
+        buttons.forEach(b => b.style.display = '');
+        showToast('خطأ في تصدير PDF', 'danger');
     });
 }
 
+// ============================================
+// BACKUP & RESTORE
+// ============================================
+function exportBackup() {
+    const backup = {
+        version: '2.1',
+        campaign: 'حملة الأضاحي 2026',
+        org: systemSettings.orgName,
+        date: new Date().toISOString(),
+        data: {
+            saks: saks,
+            sakTypes: sakTypes,
+            settings: systemSettings
+        }
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'نسخة-احتياطية-حملة-الأضاحي-' + new Date().toISOString().split('T')[0] + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('تم تصدير النسخة الاحتياطية', 'success');
+}
+
+function importBackup(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+        try {
+            const backup = JSON.parse(ev.target.result);
+            let data = backup.data || backup;
+
+            if (confirm('استيراد البيانات؟ سيتم استبدال البيانات الحالية.')) {
+                if (data.saks) saks = data.saks;
+                if (data.sakTypes) sakTypes = data.sakTypes;
+                if (data.settings) systemSettings = data.settings;
+
+                saveSaks();
+                saveSakTypes();
+                saveSystemSettingsData();
+
+                if (systemSettings.darkMode) {
+                    document.body.classList.add('dark-mode');
+                } else {
+                    document.body.classList.remove('dark-mode');
+                }
+
+                updateUI();
+                showToast('تم استيراد البيانات بنجاح', 'success');
+            }
+        } catch(err) { 
+            showToast('خطأ في قراءة الملف', 'danger'); 
+        }
+    };
+    reader.readAsText(file);
+    input.value = '';
+}
+
+function resetAllData() {
+    if (confirm('هل أنت متأكد من إعادة ضبط جميع البيانات؟ سيتم حذف كل شيء نهائياً!')) {
+        saks = [];
+        sakTypes = [];
+        systemSettings = {
+            orgName: 'صناع الحياة',
+            pageTitle: 'نظام صكوك الأضاحي',
+            darkMode: false
+        };
+
+        saveSaks();
+        saveSakTypes();
+        saveSystemSettingsData();
+
+        document.body.classList.remove('dark-mode');
+        updateUI();
+        showToast('تم إعادة ضبط البيانات', 'success');
+        settingsModal.hide();
+    }
+}
+
+// ============================================
+// UTILITIES
+// ============================================
+function formatNumber(num) {
+    if (num === undefined || num === null) return '0';
+    return num.toLocaleString('en-US');
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '';
+    try {
+        return new Date(dateStr).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch(e) { return dateStr; }
+}
+
+function formatDateTime(iso) {
+    if (!iso) return '';
+    try {
+        return new Date(iso).toLocaleString('ar-EG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch(e) { return iso; }
+}
+
 function escapeHtml(text) {
+    if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
-// ========================================
-// QUOTES
-// ========================================
-function loadQuote() {
-    let index = AppState.currentQuoteIndex || 0;
-    if (index >= Quotes.length) index = 0;
+// ============================================
+// TOAST
+// ============================================
+function showToast(message, type) {
+    const container = document.getElementById('toastContainer');
+    const id = 'toast-' + Date.now();
 
-    const quote = Quotes[index];
-    DOM.quoteText.textContent = `"${quote.text}"`;
-    DOM.quoteAuthor.textContent = `— ${quote.author}`;
-}
-
-function nextQuote() {
-    AppState.currentQuoteIndex = (AppState.currentQuoteIndex || 0) + 1;
-    if (AppState.currentQuoteIndex >= Quotes.length) {
-        AppState.currentQuoteIndex = 0;
-    }
-    loadQuote();
-    Storage.save();
-
-    // Animate
-    DOM.quoteText.style.opacity = '0';
-    DOM.quoteAuthor.style.opacity = '0';
-    setTimeout(() => {
-        DOM.quoteText.style.transition = 'opacity 0.3s';
-        DOM.quoteAuthor.style.transition = 'opacity 0.3s';
-        DOM.quoteText.style.opacity = '1';
-        DOM.quoteAuthor.style.opacity = '1';
-    }, 100);
-}
-
-// ========================================
-// AMBIENT SOUNDS
-// ========================================
-function toggleAmbient(type) {
-    AudioEngine.init();
-
-    const buttons = {
-        rain: DOM.btnRain,
-        forest: DOM.btnForest,
-        cafe: DOM.btnCafe,
-        waves: DOM.btnWaves
+    const icons = {
+        success: 'uil-check-circle',
+        danger: 'uil-exclamation-triangle',
+        warning: 'uil-exclamation-octagon',
+        info: 'uil-info-circle'
+    };
+    const colors = {
+        success: 'bg-success',
+        danger: 'bg-danger',
+        warning: 'bg-warning text-dark',
+        info: 'bg-info'
+    };
+    const titles = {
+        success: 'نجاح',
+        danger: 'خطأ',
+        warning: 'تحذير',
+        info: 'معلومة'
     };
 
-    if (AppState.activeAmbient === type) {
-        // Turn off
-        AudioEngine.stopAmbient();
-        AppState.activeAmbient = null;
-        buttons[type].classList.remove('active');
-    } else {
-        // Turn off current
-        if (AppState.activeAmbient) {
-            buttons[AppState.activeAmbient].classList.remove('active');
-        }
-
-        // Turn on new
-        AppState.activeAmbient = type;
-        buttons[type].classList.add('active');
-        AudioEngine.startAmbient(type);
-    }
-}
-
-// ========================================
-// SETTINGS
-// ========================================
-function updateDurationDisplay() {
-    DOM.valPomodoro.textContent = AppState.durations.pomodoro;
-    DOM.valShortBreak.textContent = AppState.durations.shortBreak;
-    DOM.valLongBreak.textContent = AppState.durations.longBreak;
-}
-
-function changeDuration(setting, direction) {
-    const current = AppState.durations[setting];
-    const min = setting === 'pomodoro' ? 1 : 1;
-    const max = setting === 'pomodoro' ? 60 : 30;
-    const newValue = Math.max(min, Math.min(max, current + direction));
-
-    AppState.durations[setting] = newValue;
-    updateDurationDisplay();
-
-    // If timer is not running, update current time
-    if (!AppState.isRunning && !AppState.isPaused) {
-        if (AppState.mode === setting) {
-            AppState.totalTime = newValue * 60;
-            AppState.timeLeft = AppState.totalTime;
-            updateTimerDisplay();
-            updateRingProgress();
-        }
-    }
-
-    Storage.save();
-}
-
-function openSettings() {
-    Swal.fire({
-        title: '<i class="uil uil-setting"></i> الإعدادات',
-        html: `
-            <div class="settings-body" style="text-align: right; direction: rtl; padding: 0;">
-                <div class="settings-section">
-                    <h3>مدد المؤقت</h3>
-                    <div class="settings-row">
-                        <label>مدة التركيز</label>
-                        <div class="settings-input-group">
-                            <input type="number" id="swalPomodoro" min="1" max="60" value="${AppState.durations.pomodoro}">
-                            <span>د</span>
-                        </div>
-                    </div>
-                    <div class="settings-row">
-                        <label>استراحة قصيرة</label>
-                        <div class="settings-input-group">
-                            <input type="number" id="swalShortBreak" min="1" max="30" value="${AppState.durations.shortBreak}">
-                            <span>د</span>
-                        </div>
-                    </div>
-                    <div class="settings-row">
-                        <label>استراحة طويلة</label>
-                        <div class="settings-input-group">
-                            <input type="number" id="swalLongBreak" min="1" max="60" value="${AppState.durations.longBreak}">
-                            <span>د</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="settings-section">
-                    <h3>التفضيلات</h3>
-                    <div class="settings-row">
-                        <label>بدء الاستراحة تلقائياً</label>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="swalAutoStartBreak" ${AppState.autoStartBreak ? 'checked' : ''}>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div class="settings-row">
-                        <label>بدء التركيز تلقائياً</label>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="swalAutoStartFocus" ${AppState.autoStartFocus ? 'checked' : ''}>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div class="settings-row">
-                        <label>مستوى الصوت</label>
-                        <input type="range" id="swalVolume" min="0" max="100" value="${AppState.volume}" class="settings-range">
-                    </div>
-                </div>
-                <div class="settings-section" style="margin-bottom: 0;">
-                    <h3>البيانات</h3>
-                    <button class="settings-danger-btn" id="swalBtnResetData" type="button">
-                        <i class="uil uil-trash-alt"></i> إعادة تعيين جميع البيانات
-                    </button>
-                </div>
+    container.insertAdjacentHTML('beforeend', `
+        <div id="${id}" class="toast custom-toast" data-bs-delay="3000">
+            <div class="toast-header ${colors[type]} text-white">
+                <i class="uil ${icons[type]} me-2"></i>
+                <strong class="me-auto">${titles[type]}</strong>
+                <button class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
             </div>
-        `,
-        customClass: {
-            popup: 'swal-settings-popup',
-            confirmButton: 'swal-confirm-focus',
-            cancelButton: 'swal-cancel-btn'
-        },
-        showCancelButton: true,
-        confirmButtonText: 'حفظ التغييرات',
-        cancelButtonText: 'إلغاء',
-        buttonsStyling: false,
-        didOpen: () => {
-            const btnReset = document.getElementById('swalBtnResetData');
-            btnReset.addEventListener('click', resetAllData);
-        },
-        preConfirm: () => {
-            const pomodoro = parseInt(document.getElementById('swalPomodoro').value) || 25;
-            const shortBreak = parseInt(document.getElementById('swalShortBreak').value) || 5;
-            const longBreak = parseInt(document.getElementById('swalLongBreak').value) || 15;
-            const autoStartBreak = document.getElementById('swalAutoStartBreak').checked;
-            const autoStartFocus = document.getElementById('swalAutoStartFocus').checked;
-            const volume = parseInt(document.getElementById('swalVolume').value) || 50;
-            
-            return { pomodoro, shortBreak, longBreak, autoStartBreak, autoStartFocus, volume };
-        }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            saveSettings(result.value);
-        }
-    });
+            <div class="toast-body">${message}</div>
+        </div>
+    `);
+
+    const el = document.getElementById(id);
+    const toast = new bootstrap.Toast(el);
+    toast.show();
+    el.addEventListener('hidden.bs.toast', () => el.remove());
 }
-
-function saveSettings(values) {
-    AppState.durations.pomodoro = Math.max(1, Math.min(60, values.pomodoro));
-    AppState.durations.shortBreak = Math.max(1, Math.min(30, values.shortBreak));
-    AppState.durations.longBreak = Math.max(1, Math.min(60, values.longBreak));
-
-    AppState.autoStartBreak = values.autoStartBreak;
-    AppState.autoStartFocus = values.autoStartFocus;
-    AppState.volume = values.volume;
-
-    updateDurationDisplay();
-
-    // Update current timer if not running
-    if (!AppState.isRunning && !AppState.isPaused) {
-        AppState.totalTime = AppState.durations[AppState.mode] * 60;
-        AppState.timeLeft = AppState.totalTime;
-        updateTimerDisplay();
-        updateRingProgress();
-    }
-
-    // Update ambient volume
-    AudioEngine.updateAmbientVolume();
-
-    Storage.save();
-}
-
-function resetAllData() {
-    // Close the settings modal first
-    Swal.close();
-
-    Swal.fire({
-        customClass: {
-            popup: 'swal-danger-popup',
-            confirmButton: 'swal-confirm-danger',
-            cancelButton: 'swal-cancel-btn'
-        },
-        icon: 'warning',
-        title: 'إعادة تعيين البيانات',
-        html: `
-            <div style="text-align:center;">
-                <p style="color:var(--text-secondary); font-family:'Cairo','Tajawal',sans-serif; font-size:0.875rem; line-height:1.7;">
-                    هل أنت متأكد أنك تريد إعادة تعيين جميع البيانات؟<br>
-                    <strong style="color:var(--accent-rose);">لا يمكن التراجع عن هذه العملية.</strong>
-                </p>
-            </div>
-        `,
-        showConfirmButton: true,
-        showCancelButton: true,
-        confirmButtonText: 'نعم، إعادة التعيين',
-        cancelButtonText: 'إلغاء',
-        buttonsStyling: false,
-        reverseButtons: false,
-    }).then((result) => {
-        if (result.isConfirmed) {
-            Storage.clear();
-
-            AppState.durations = { pomodoro: 25, shortBreak: 5, longBreak: 15 };
-            AppState.completedSessions = 0;
-            AppState.totalFocusMinutes = 0;
-            AppState.tasks = [];
-            AppState.nextTaskId = 1;
-            AppState.soundEnabled = true;
-            AppState.notificationsEnabled = false;
-            AppState.autoStartBreak = false;
-            AppState.autoStartFocus = false;
-            AppState.volume = 50;
-            AppState.streak = 0;
-            AppState.tasksCompleted = 0;
-            AppState.currentSession = 1;
-
-            resetTimer();
-            setMode('pomodoro');
-            updateDurationDisplay();
-            renderTasks();
-            updateStats();
-            initSessionDots();
-
-            DOM.soundToggle.checked = true;
-            DOM.notifToggle.checked = false;
-            DOM.volumeSlider.value = 50;
-
-            Storage.save();
-
-            Swal.fire({
-                customClass: { popup: 'swal-focus-popup', confirmButton: 'swal-confirm-focus' },
-                icon: 'success',
-                title: 'تمت إعادة التعيين',
-                html: `<div style="text-align:center;"><p style="color:var(--text-secondary);font-family:'Cairo','Tajawal',sans-serif;">تمت إعادة تعيين جميع البيانات بنجاح.</p></div>`,
-                showConfirmButton: false,
-                timer: 2000,
-                buttonsStyling: false
-            });
-        } else {
-            // Re-open settings if cancelled
-            openSettings();
-        }
-    });
-}
-
-
-
-// ========================================
-// PARTICLES
-// ========================================
-function createParticles() {
-    const container = document.getElementById('particles');
-    const particleCount = 25;
-
-    for (let i = 0; i < particleCount; i++) {
-        const particle = document.createElement('div');
-        particle.className = 'particle';
-        particle.style.left = `${Math.random() * 100}%`;
-        particle.style.animationDuration = `${15 + Math.random() * 20}s`;
-        particle.style.animationDelay = `${Math.random() * 15}s`;
-        particle.style.opacity = `${0.1 + Math.random() * 0.3}`;
-
-        const size = 2 + Math.random() * 4;
-        particle.style.width = `${size}px`;
-        particle.style.height = `${size}px`;
-
-        container.appendChild(particle);
-    }
-}
-
-// ========================================
-// NOTIFICATIONS
-// ========================================
-function requestNotificationPermission() {
-    if ('Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission().then(permission => {
-            AppState.notificationsEnabled = permission === 'granted';
-            DOM.notifToggle.checked = AppState.notificationsEnabled;
-            Storage.save();
-        });
-    }
-}
-
-// ========================================
-// EVENT LISTENERS
-// ========================================
-function bindEvents() {
-    // Theme
-    DOM.themeToggle.addEventListener('click', toggleTheme);
-
-    // Focus mode
-    DOM.focusToggle.addEventListener('click', toggleFocusMode);
-
-    // Settings
-    DOM.settingsToggle.addEventListener('click', openSettings);
-
-    // Timer controls
-    DOM.btnMain.addEventListener('click', handleMainButton);
-    DOM.btnReset.addEventListener('click', resetTimer);
-    DOM.btnSkip.addEventListener('click', skipTimer);
-
-    // Mode tabs
-    DOM.tabPomodoro.addEventListener('click', () => setMode('pomodoro'));
-    DOM.tabShortBreak.addEventListener('click', () => setMode('shortBreak'));
-    DOM.tabLongBreak.addEventListener('click', () => setMode('longBreak'));
-
-    // Tasks
-    DOM.taskAddBtn.addEventListener('click', addTask);
-    DOM.taskInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') addTask();
-    });
-
-    // Quote
-    DOM.quoteRefresh.addEventListener('click', nextQuote);
-
-    // Ambient
-    DOM.btnRain.addEventListener('click', () => toggleAmbient('rain'));
-    DOM.btnForest.addEventListener('click', () => toggleAmbient('forest'));
-    DOM.btnCafe.addEventListener('click', () => toggleAmbient('cafe'));
-    DOM.btnWaves.addEventListener('click', () => toggleAmbient('waves'));
-
-    DOM.volumeSlider.addEventListener('input', (e) => {
-        AppState.volume = parseInt(e.target.value);
-        AudioEngine.updateAmbientVolume();
-        Storage.save();
-    });
-
-    // Quick settings
-    document.querySelectorAll('.setting-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const setting = btn.dataset.setting;
-            const dir = parseInt(btn.dataset.dir);
-            changeDuration(setting, dir);
-        });
-    });
-
-    DOM.soundToggle.addEventListener('change', (e) => {
-        AppState.soundEnabled = e.target.checked;
-        Storage.save();
-    });
-
-    DOM.notifToggle.addEventListener('change', (e) => {
-        if (e.target.checked) {
-            requestNotificationPermission();
-        } else {
-            AppState.notificationsEnabled = false;
-            Storage.save();
-        }
-    });
-
-
-
-    // Focus exit button
-    if (DOM.focusExitBtn) {
-        DOM.focusExitBtn.addEventListener('click', toggleFocusMode);
-    }
-
-    // Keyboard shortcuts
-    document.addEventListener('keydown', (e) => {
-        // Space to start/pause
-        if (e.code === 'Space' && e.target.tagName !== 'INPUT') {
-            e.preventDefault();
-            handleMainButton();
-        }
-        // R to reset
-        if (e.code === 'KeyR' && e.target.tagName !== 'INPUT') {
-            e.preventDefault();
-            resetTimer();
-        }
-        // Escape to close focus mode
-        if (e.code === 'Escape') {
-            if (AppState.focusMode) toggleFocusMode();
-        }
-    });
-}
-
-// ========================================
-// INITIALIZATION
-// ========================================
-function init() {
-    cacheDOM();
-    Storage.load();
-
-    // Apply theme
-    applyTheme();
-
-    // Initialize timer
-    AppState.totalTime = AppState.durations.pomodoro * 60;
-    AppState.timeLeft = AppState.totalTime;
-
-    // Update UI
-    updateTimerDisplay();
-    updateRingProgress();
-    updateTimerStatus();
-    updateModeTabs();
-    updateRingColors();
-    updateDurationDisplay();
-    updateStats();
-    renderTasks();
-    initSessionDots();
-    loadQuote();
-
-    // Set toggles
-    DOM.soundToggle.checked = AppState.soundEnabled;
-    DOM.notifToggle.checked = AppState.notificationsEnabled;
-    DOM.volumeSlider.value = AppState.volume;
-
-    // Start clock
-    updateClock();
-    setInterval(updateClock, 1000);
-
-    // Create particles
-    createParticles();
-
-    // Check streak
-    checkStreak();
-
-    // Bind events
-    bindEvents();
-
-    // Save initial state
-    Storage.save();
-
-    console.log('تم تشغيل فوكس فلو بنجاح!');
-}
-
-// Start the app when DOM is ready
-document.addEventListener('DOMContentLoaded', init);
